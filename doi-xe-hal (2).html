@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đội xe HAL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12161c;
+    --panel:#1b212b;
+    --panel-2:#232b37;
+    --border:rgba(255,255,255,0.08);
+    --text:#f3f1ea;
+    --text-dim:#9aa3b0;
+    --amber:#ffb020;
+    --teal:#37d6a6;
+    --red:#ff6b5e;
+    --plate-yellow:#f5c518;
+    --plate-blue:#14315c;
+    --blue:#5b8dee;
+    --violet:#b58cff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+    font-family:'Inter',sans-serif;
+    background-image:
+      repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(255,255,255,0.035) 38px, rgba(255,255,255,0.035) 66px);
+    background-attachment:fixed;
+  }
+  h1,h2,h3,.display{font-family:'Be Vietnam Pro',sans-serif; letter-spacing:-0.01em;}
+  .mono{font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums;}
+  #app{min-height:100vh; display:flex; flex-direction:column;}
+
+  /* ---------- LOGIN ---------- */
+  .login-wrap{flex:1; display:flex; align-items:center; justify-content:center; padding:24px;}
+  .login-card{
+    width:100%; max-width:420px; background:var(--panel); border:1px solid var(--border);
+    border-radius:20px; padding:32px 28px; box-shadow:0 30px 60px -20px rgba(0,0,0,0.6);
+  }
+  .login-eyebrow{color:var(--amber); font-size:12px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; margin-bottom:6px;}
+  .login-title{font-size:26px; font-weight:800; margin:0 0 4px;}
+  .login-sub{color:var(--text-dim); font-size:14px; margin:0 0 24px;}
+  .role-tabs{display:flex; gap:8px; margin-bottom:20px; background:var(--panel-2); padding:4px; border-radius:12px;}
+  .role-tab{flex:1; text-align:center; padding:10px; border-radius:9px; cursor:pointer; font-weight:600; font-size:14px; color:var(--text-dim); transition:all .15s;}
+  .role-tab.active{background:var(--amber); color:#241a04;}
+  .field-label{font-size:13px; color:var(--text-dim); margin:14px 0 6px; display:block;}
+  select, input[type=password], input[type=text]{
+    width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border);
+    background:var(--panel-2); color:var(--text); font-size:15px; font-family:inherit;
+  }
+  input:focus, select:focus{outline:2px solid var(--amber); outline-offset:1px;}
+  .pin-dots{letter-spacing:6px; font-size:20px;}
+  .btn{
+    margin-top:22px; width:100%; padding:13px; border:none; border-radius:10px;
+    background:var(--amber); color:#241a04; font-weight:700; font-size:15px; cursor:pointer;
+    font-family:'Be Vietnam Pro',sans-serif;
+  }
+  .btn:active{transform:scale(0.99);}
+  .btn.ghost{background:transparent; border:1px solid var(--border); color:var(--text); margin-top:10px;}
+  .error-msg{color:var(--red); font-size:13px; margin-top:12px; line-height:1.5;}
+
+  /* ---------- APP SHELL ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:14px 20px; background:var(--panel); border-bottom:1px solid var(--border);
+    position:sticky; top:0; z-index:10; flex-wrap:wrap;
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-mark{width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,var(--amber),#ff7a3d); display:flex; align-items:center; justify-content:center; font-weight:800; color:#241a04; font-family:'Be Vietnam Pro';}
+  .brand-name{font-weight:800; font-size:16px;}
+  .plate{
+    display:flex; flex-direction:column; align-items:center; background:var(--plate-yellow); color:var(--plate-blue);
+    border-radius:8px; padding:5px 12px; border:2px solid var(--plate-blue); line-height:1.1;
+  }
+  .plate .role{font-size:9px; font-weight:700; letter-spacing:0.08em;}
+  .plate .who{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:13px;}
+  .logout{background:none; border:1px solid var(--border); color:var(--text-dim); padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px;}
+
+  .tabs{display:flex; gap:6px; padding:12px 20px 0; overflow-x:auto; background:var(--panel); border-bottom:1px solid var(--border);}
+  .tab-btn{
+    padding:10px 16px; border-radius:10px 10px 0 0; background:transparent; border:none; color:var(--text-dim);
+    font-weight:600; font-size:14px; cursor:pointer; white-space:nowrap; font-family:'Be Vietnam Pro',sans-serif;
+  }
+  .tab-btn.active{color:var(--amber); background:var(--bg); box-shadow:inset 0 -2px 0 var(--amber);}
+
+  .content{flex:1; padding:22px 20px 60px; max-width:1000px; margin:0 auto; width:100%;}
+  .panel{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:20px;}
+  .panel + .panel{margin-top:16px;}
+  .section-title{font-size:18px; font-weight:800; margin:0 0 4px;}
+  .section-sub{color:var(--text-dim); font-size:13px; margin:0 0 18px; line-height:1.5;}
+  .refresh-row{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:12px; flex-wrap:wrap;}
+  .refresh-btn{background:var(--panel-2); border:1px solid var(--border); color:var(--text); padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px;}
+
+  .loading{color:var(--text-dim); font-size:14px; padding:30px 0; text-align:center;}
+  .empty{color:var(--text-dim); font-size:14px; padding:24px; text-align:center; border:1px dashed var(--border); border-radius:12px;}
+
+  /* daily earnings - route timeline */
+  .route-line{position:relative; padding-left:26px;}
+  .route-line::before{content:''; position:absolute; left:7px; top:6px; bottom:6px; width:2px; background:repeating-linear-gradient(180deg,var(--border) 0 6px, transparent 6px 12px);}
+  .day-card{position:relative; margin-bottom:14px; background:var(--panel-2); border:1px solid var(--border); border-radius:12px; padding:14px 16px; cursor:pointer;}
+  .day-card::before{content:''; position:absolute; left:-22px; top:18px; width:11px; height:11px; border-radius:50%; background:var(--teal); border:2px solid var(--bg);}
+  .day-head{display:flex; justify-content:space-between; align-items:center;}
+  .day-date{font-weight:700; font-size:15px;}
+  .day-total{font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--teal); font-size:16px;}
+  .day-count{color:var(--text-dim); font-size:12px; margin-top:2px;}
+  .trip-list{margin-top:12px; padding-top:12px; border-top:1px solid var(--border); display:none;}
+  .day-card.open .trip-list{display:block;}
+  .trip-row{display:flex; justify-content:space-between; gap:10px; font-size:13px; padding:6px 0; border-bottom:1px dashed var(--border);}
+  .trip-row:last-child{border-bottom:none;}
+  .trip-route{color:var(--text-dim);}
+  .trip-amt{font-family:'JetBrains Mono',monospace; color:var(--text);}
+
+  .cum-banner{display:flex; justify-content:space-between; align-items:center; background:linear-gradient(135deg,var(--panel-2),var(--panel)); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:18px;}
+  .cum-label{color:var(--text-dim); font-size:13px;}
+  .cum-value{font-family:'JetBrains Mono',monospace; font-size:26px; font-weight:700; color:var(--amber);}
+
+  /* salary grid */
+  .total-banner{
+    display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;
+    background:linear-gradient(135deg,#1a3329,#122622); border:1px solid var(--teal); border-radius:14px;
+    padding:20px; margin-bottom:18px;
+  }
+  .tb-label{color:var(--text-dim); font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em;}
+  .tb-value{font-family:'JetBrains Mono',monospace; font-size:28px; font-weight:800; color:var(--teal);}
+  .salary-subtitle{font-size:12px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; margin:18px 0 8px;}
+  .salary-subtitle:first-of-type{margin-top:0;}
+  .salary-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px;}
+  .salary-grid + .salary-subtitle{margin-top:18px;}
+  .salary-item{background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:12px;}
+  .salary-item.basic{border-color:var(--blue);}
+  .salary-item.trip{border-color:var(--teal);}
+  .si-label{font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em;}
+  .si-val{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:16px; margin-top:4px;}
+  .salary-item.basic .si-val{color:var(--blue);}
+  .salary-item.trip .si-val{color:var(--teal);}
+
+  /* attendance */
+  .att-summary{display:flex; gap:14px; margin-bottom:16px;}
+  .att-chip{background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:12px 18px; text-align:center;}
+  .att-chip b{display:block; font-size:22px; color:var(--teal); font-family:'JetBrains Mono',monospace;}
+  .att-chip span{font-size:11px; color:var(--text-dim);}
+  .att-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+  .att-cell{aspect-ratio:1; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:11px; border:1px solid var(--border); background:var(--panel-2); position:relative;}
+  .att-cell.full{background:rgba(55,214,166,0.15); border-color:var(--teal); color:var(--teal);}
+  .att-cell.half{background:rgba(255,176,32,0.15); border-color:var(--amber); color:var(--amber);}
+  .att-cell.other{background:rgba(181,140,255,0.15); border-color:var(--violet); color:var(--violet);}
+  .att-cell .d{font-weight:700; font-size:13px;}
+  .att-cell .w{color:var(--text-dim); font-size:9px;}
+  .att-cell .mk{position:absolute; top:2px; right:4px; font-size:9px; font-weight:700;}
+  .att-legend{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px; font-size:12px; color:var(--text-dim);}
+  .att-legend span{display:inline-flex; align-items:center; gap:6px;}
+  .att-legend i{width:10px; height:10px; border-radius:3px; display:inline-block;}
+
+  /* manager tables */
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th,td{padding:9px 10px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap;}
+  th{color:var(--text-dim); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.03em; position:sticky; top:0; background:var(--panel);}
+  td.mono-cell{font-family:'JetBrains Mono',monospace;}
+  .table-scroll{overflow-x:auto; border-radius:10px;}
+  .driver-filter{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
+  .chip-btn{padding:7px 14px; border-radius:20px; border:1px solid var(--border); background:var(--panel-2); color:var(--text-dim); cursor:pointer; font-size:13px;}
+  .chip-btn.active{background:var(--amber); color:#241a04; border-color:var(--amber); font-weight:700;}
+  .sheet-link{display:inline-block; margin-top:4px; color:var(--amber); font-size:13px; text-decoration:none;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ============ CONFIG ============ */
+const SHEET_ID = '1-Z9QEBUhM4_UcmTFCpBt1n9u557CXKGneEdw6ThiRz4';
+const API_KEY  = 'AIzaSyAKezxEBHntpVFkuswYP7iGjQhoojeGcTE';
+const SHEET_EDIT_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
+const TAB_TRIPS  = 'Chi tiết chuyến';
+const TAB_SALARY = 'Bảng lương';
+const TAB_ATTEND = 'Chấm công';
+
+const USERS = [
+  { name: 'Nguyễn Văn Tùng', pin: '1995', role: 'driver' },
+  { name: 'Nguyễn Khắc Trường Minh', pin: '1996', role: 'driver' },
+  { name: 'Quản lý', pin: '1988', role: 'manager' },
+];
+
+/* ============ STATE ============ */
+const state = {
+  user: null,
+  loginRole: 'driver',
+  driverTab: 'daily',
+  managerTab: 'salary',
+  managerFilter: 'Tất cả',
+  cache: {},
+  loading: {},
+  errors: {},
+  openDay: null,
+};
+
+/* ============ SHEETS API ============ */
+async function fetchRange(tab, range){
+  const full = `'${tab}'!${range}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(full)}?key=${API_KEY}&valueRenderOption=FORMATTED_VALUE`;
+  const res = await fetch(url);
+  if(!res.ok){
+    let msg = `Lỗi tải dữ liệu (mã ${res.status})`;
+    try{ const j = await res.json(); if(j?.error?.message) msg += ': ' + j.error.message; }catch(e){}
+    if(res.status===403 || res.status===400) msg += '. Kiểm tra lại: Sheet đã bật "Anyone with the link - Viewer" chưa? API key đã bật đúng Google Sheets API chưa?';
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  return data.values || [];
+}
+
+function forwardFill(row){
+  let last=''; return (row||[]).map(c=>{ const v=(c||'').trim(); if(v) last=v; return last; });
+}
+function parseMoney(v){
+  if(!v) return 0;
+  const cleaned = String(v).replace(/[^\d-]/g,'');
+  return cleaned ? parseInt(cleaned,10) : 0;
+}
+function formatMoney(n){
+  return (n||0).toLocaleString('vi-VN') + ' đ';
+}
+function parseVNDate(s){
+  const m = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s||'');
+  if(!m) return 0;
+  return new Date(+m[3], +m[2]-1, +m[1]).getTime();
+}
+
+async function parseTrips(){
+  const rows = await fetchRange(TAB_TRIPS, 'A9:BZ3000');
+  if(rows.length<3) throw new Error(`Không đọc được dữ liệu từ tab "${TAB_TRIPS}".`);
+  const mainFilled = forwardFill(rows[0]);
+  const sub = (rows[1]||[]).map(c=>(c||'').trim());
+  const colDriver = mainFilled.findIndex(h=>h.includes('Tên lái xe'));
+  const colDate = sub.findIndex(h=>h.toUpperCase()==='DATE');
+  const colWage = mainFilled.findIndex(h=>h.includes('Lương lái xe theo chuyến'));
+  const bonusCols = mainFilled.map((h,i)=>h.includes('Phí trả lái xe')?i:-1).filter(i=>i!==-1);
+  const colRoute = mainFilled.findIndex(h=>h.includes('Tuyến vận chuyển'));
+  const colNote = mainFilled.findIndex(h=>h.toUpperCase().includes('GHI CHÚ'));
+  if(colDriver===-1 || colDate===-1 || colWage===-1){
+    throw new Error(`Không tìm thấy đủ cột cần thiết trong tab "${TAB_TRIPS}" (Tên lái xe / DATE / Lương lái xe theo chuyến). Cấu trúc bảng có thể đã thay đổi so với ban đầu.`);
+  }
+  const records = [];
+  for(let i=2;i<rows.length;i++){
+    const r = rows[i];
+    if(!r || !r[colDriver] || !r[colDriver].trim()) continue;
+    const wage = parseMoney(r[colWage]);
+    const bonus = bonusCols.reduce((s,ci)=>s+parseMoney(r[ci]),0);
+    records.push({
+      driver: r[colDriver].trim(),
+      date: (r[colDate]||'').trim(),
+      route: colRoute!==-1 ? (r[colRoute]||'').trim() : '',
+      note: colNote!==-1 ? (r[colNote]||'').trim() : '',
+      wage, bonus, total: wage+bonus,
+    });
+  }
+  return records;
+}
+
+async function parseSalary(){
+  const rows = await fetchRange(TAB_SALARY, 'A1:AZ200');
+  const headerIdx = rows.findIndex(r=>r.some(c=>(c||'').trim()==='Họ và tên'));
+  if(headerIdx===-1) throw new Error(`Không tìm thấy cột "Họ và tên" trong tab "${TAB_SALARY}".`);
+  const headers = rows[headerIdx].map(h=>(h||'').trim());
+  const nameCol = headers.findIndex(h=>h==='Họ và tên');
+  const records = [];
+  for(let i=headerIdx+1;i<rows.length;i++){
+    const r = rows[i];
+    if(!r || !r[nameCol] || !r[nameCol].trim()) continue;
+    const obj = {};
+    headers.forEach((h,idx)=>{ if(h) obj[h] = r[idx]!==undefined ? r[idx] : ''; });
+    records.push(obj);
+  }
+  return { headers, records, nameCol };
+}
+
+/*
+  Nhận diện nội dung 1 ô chấm công. Trước đây code chỉ coi là "có công" khi ô
+  đúng bằng "X" — mọi ký hiệu khác (ví dụ nửa công: "1/2", "X/2", "0.5", "Nửa")
+  bị coi như ô trống, khiến ngày đó biến mất khỏi thống kê. Giờ:
+    - "X"                              -> công đầy đủ (full, 1 công)
+    - "1/2", "X/2", "0.5", "nửa", ...  -> nửa công (half, 0.5 công)
+    - "-", "nghỉ", "off", ô trống      -> nghỉ (off, 0 công)
+    - bất kỳ nội dung khác không rỗng  -> vẫn giữ lại & hiển thị (other),
+      tính là 1 công, để không bao giờ mất dữ liệu dù ký hiệu trong Sheet là gì.
+*/
+function parseMark(v){
+  const raw = (v||'').trim();
+  if(!raw) return { status:'off', value:0, label:'' };
+  const up = raw.toUpperCase().replace(/\s+/g,'');
+  if(up==='X') return { status:'full', value:1, label:'X' };
+  if(up==='1/2' || up==='X/2' || up==='0.5' || up==='0,5' || up.includes('NỬA') || up.includes('HALF')){
+    return { status:'half', value:0.5, label:'½' };
+  }
+  if(up==='-' || up==='NGHỈ' || up==='OFF' || up==='O'){
+    return { status:'off', value:0, label:'' };
+  }
+  return { status:'other', value:1, label:raw };
+}
+
+async function parseAttendance(){
+  const rows = await fetchRange(TAB_ATTEND, 'A1:BZ60');
+  const nameRowIdx = rows.findIndex(r=>r.some(c=>(c||'').trim()==='Họ và tên'));
+  if(nameRowIdx===-1) throw new Error(`Không tìm thấy cột "Họ và tên" trong tab "${TAB_ATTEND}".`);
+  const weekdayRow = rows[nameRowIdx];
+  const dateRow = rows[nameRowIdx+1] || [];
+  const nameCol = weekdayRow.findIndex(c=>(c||'').trim()==='Họ và tên');
+  const dateCols = [];
+  const maxLen = Math.max(weekdayRow.length, dateRow.length);
+  for(let j=nameCol+1;j<maxLen;j++){
+    const dv = (dateRow[j]||'').trim();
+    if(dv) dateCols.push({ idx:j, date:dv, weekday:(weekdayRow[j]||'').trim() });
+  }
+  const records = [];
+  for(let i=nameRowIdx+2;i<rows.length;i++){
+    const r = rows[i];
+    if(!r || !r[nameCol] || !r[nameCol].trim()) continue;
+    const marks = dateCols.map(dc=>{
+      const m = parseMark(r[dc.idx]);
+      return { ...dc, ...m, present: m.status!=='off' };
+    });
+    const total = marks.reduce((s,m)=>s+m.value,0);
+    records.push({ name:r[nameCol].trim(), marks, total });
+  }
+  return records;
+}
+
+async function loadData(key, loader){
+  if(state.cache[key]) return state.cache[key];
+  state.loading[key]=true; state.errors[key]=null; render();
+  try{
+    const data = await loader();
+    state.cache[key] = data;
+    return data;
+  }catch(e){
+    state.errors[key] = e.message || String(e);
+    throw e;
+  }finally{
+    state.loading[key]=false; render();
+  }
+}
+function invalidate(key){ delete state.cache[key]; }
+
+/* ============ RENDER: LOGIN ============ */
+function renderLogin(){
+  const drivers = USERS.filter(u=>u.role==='driver');
+  return `
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-eyebrow">Đội xe HAL</div>
+      <h1 class="login-title">Đăng nhập</h1>
+      <p class="login-sub">Chọn vai trò và nhập mã PIN để tiếp tục.</p>
+      <div class="role-tabs">
+        <div class="role-tab ${state.loginRole==='driver'?'active':''}" onclick="setLoginRole('driver')">Lái xe</div>
+        <div class="role-tab ${state.loginRole==='manager'?'active':''}" onclick="setLoginRole('manager')">Quản lý</div>
+      </div>
+      ${state.loginRole==='driver' ? `
+        <label class="field-label">Họ và tên</label>
+        <select id="driverSelect">
+          ${drivers.map(d=>`<option value="${d.name}">${d.name}</option>`).join('')}
+        </select>
+      ` : ''}
+      <label class="field-label">Mã PIN</label>
+      <input type="password" id="pinInput" inputmode="numeric" maxlength="8" placeholder="••••" class="pin-dots">
+      <div id="loginError" class="error-msg"></div>
+      <button class="btn" onclick="doLogin()">Đăng nhập</button>
+    </div>
+  </div>`;
+}
+function setLoginRole(role){ state.loginRole = role; render(); }
+function doLogin(){
+  const pin = document.getElementById('pinInput').value.trim();
+  const errEl = document.getElementById('loginError');
+  let matched;
+  if(state.loginRole==='driver'){
+    const name = document.getElementById('driverSelect').value;
+    matched = USERS.find(u=>u.role==='driver' && u.name===name && u.pin===pin);
+  } else {
+    matched = USERS.find(u=>u.role==='manager' && u.pin===pin);
+  }
+  if(!matched){ errEl.textContent = 'Mã PIN không đúng. Vui lòng thử lại.'; return; }
+  state.user = matched;
+  state.cache = {}; state.errors = {};
+  render();
+}
+function logout(){ state.user = null; state.cache={}; state.errors={}; render(); }
+
+/* ============ RENDER: SHELL ============ */
+function renderShell(innerHtml, tabsHtml){
+  return `
+  <div class="topbar">
+    <div class="brand"><div class="brand-mark">HAL</div><div class="brand-name">Đội xe HAL</div></div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="plate">
+        <span class="role">${state.user.role==='manager'?'QUẢN LÝ':'LÁI XE'}</span>
+        <span class="who">${state.user.name.toUpperCase()}</span>
+      </div>
+      <button class="logout" onclick="logout()">Đăng xuất</button>
+    </div>
+  </div>
+  <div class="tabs">${tabsHtml}</div>
+  <div class="content">${innerHtml}</div>`;
+}
+
+/* ============ DRIVER: DAILY EARNINGS ============ */
+async function renderDailyTab(){
+  const key='trips';
+  if(state.loading[key]) return `<div class="loading">Đang tải dữ liệu chuyến đi…</div>`;
+  if(state.errors[key]) return errorPanel(state.errors[key], key, ()=>{invalidate(key); loadThenRender();});
+  let trips;
+  try{ trips = await loadData(key, parseTrips); }catch(e){ return ''; }
+  const mine = trips.filter(t=>t.driver===state.user.name);
+  const map = new Map();
+  mine.forEach(t=>{
+    if(!map.has(t.date)) map.set(t.date,{date:t.date, trips:[], total:0});
+    const g = map.get(t.date); g.trips.push(t); g.total += t.total;
+  });
+  const days = Array.from(map.values()).sort((a,b)=>parseVNDate(b.date)-parseVNDate(a.date));
+  const cumTotal = mine.reduce((s,t)=>s+t.total,0);
+
+  return `
+    <div class="cum-banner">
+      <div><div class="cum-label">Tổng lương chuyến + phụ cấp (từ đầu tháng đến nay)</div><div class="cum-value">${formatMoney(cumTotal)}</div></div>
+      <div class="cum-label">${mine.length} chuyến</div>
+    </div>
+    <div class="panel">
+      <div class="refresh-row">
+        <div><div class="section-title">Thu nhập theo ngày</div><div class="section-sub" style="margin:0;">Lương chuyến + phụ cấp phát sinh (vé kho, bốc xếp, ghép hàng, chủ nhật, chờ giờ, ăn ca 2, tăng ca). Chưa gồm lương cơ bản & phụ cấp cố định — xem ở tab "Bảng lương tháng".</div></div>
+        <button class="refresh-btn" onclick="invalidate('trips'); loadThenRender();">↻ Làm mới</button>
+      </div>
+      ${days.length===0 ? `<div class="empty">Chưa có dữ liệu chuyến nào được ghi nhận cho bạn.</div>` : `
+      <div class="route-line">
+        ${days.map((d,i)=>`
+          <div class="day-card ${state.openDay===d.date?'open':''}" onclick="toggleDay('${d.date}')">
+            <div class="day-head">
+              <div><div class="day-date">${d.date}</div><div class="day-count">${d.trips.length} chuyến</div></div>
+              <div class="day-total mono">${formatMoney(d.total)}</div>
+            </div>
+            <div class="trip-list">
+              ${d.trips.map(t=>`
+                <div class="trip-row">
+                  <div class="trip-route">${t.route || t.note || 'Chuyến hàng'}</div>
+                  <div class="trip-amt">${formatMoney(t.total)}</div>
+                </div>`).join('')}
+            </div>
+          </div>`).join('')}
+      </div>`}
+    </div>`;
+}
+function toggleDay(date){ state.openDay = state.openDay===date ? null : date; render(); }
+
+/* ============ DRIVER: MONTHLY SALARY ============ */
+async function renderSalaryTab(){
+  const key='salary';
+  if(state.loading[key]) return `<div class="loading">Đang tải bảng lương…</div>`;
+  if(state.errors[key]) return errorPanel(state.errors[key], key, ()=>{invalidate(key); loadThenRender();});
+  let data;
+  try{ data = await loadData(key, parseSalary); }catch(e){ return ''; }
+  const row = data.records.find(r=>r['Họ và tên']===state.user.name);
+  if(!row) return `<div class="panel"><div class="empty">Chưa tìm thấy dòng lương của bạn trong tab "Bảng lương".</div></div>`;
+  const skip = ['STT','Họ và tên','Hưởng lương CB?'];
+  const totalKey = Object.keys(row).find(k=>k.toUpperCase().includes('TỔNG THỰC LĨNH'))
+    || Object.keys(row).find(k=>k.toUpperCase().includes('TỔNG'));
+  const restKeys = Object.keys(row).filter(k=>!skip.includes(k) && k!==totalKey);
+  const basicKeys = restKeys.filter(k=>k.toLowerCase().includes('cơ bản'));
+  const tripKeys  = restKeys.filter(k=>k.toLowerCase().includes('chuyến'));
+  const otherKeys = restKeys.filter(k=>!basicKeys.includes(k) && !tripKeys.includes(k));
+
+  const item = (k,cls)=>`
+    <div class="salary-item ${cls}"><div class="si-label">${k}</div><div class="si-val">${isNaN(parseMoney(row[k]))?row[k]:formatMoney(parseMoney(row[k]))}</div></div>`;
+
+  return `
+    <div class="panel">
+      <div class="refresh-row">
+        <div><div class="section-title">Bảng lương tháng</div><div class="section-sub" style="margin:0;">Số liệu tổng hợp cả tháng, cập nhật theo tab "Bảng lương" của quản lý.</div></div>
+        <button class="refresh-btn" onclick="invalidate('salary'); loadThenRender();">↻ Làm mới</button>
+      </div>
+
+      ${totalKey ? `
+      <div class="total-banner">
+        <div><div class="tb-label">${totalKey}</div></div>
+        <div class="tb-value">${formatMoney(parseMoney(row[totalKey]))}</div>
+      </div>` : ''}
+
+      ${basicKeys.length ? `<div class="salary-subtitle">Lương cơ bản</div><div class="salary-grid">${basicKeys.map(k=>item(k,'basic')).join('')}</div>` : ''}
+      ${tripKeys.length ? `<div class="salary-subtitle">Lương chuyến</div><div class="salary-grid">${tripKeys.map(k=>item(k,'trip')).join('')}</div>` : ''}
+      ${otherKeys.length ? `<div class="salary-subtitle">Phụ cấp khác</div><div class="salary-grid">${otherKeys.map(k=>item(k,'')).join('')}</div>` : ''}
+    </div>`;
+}
+
+/* ============ DRIVER: ATTENDANCE ============ */
+async function renderAttendanceTab(){
+  const key='attendance';
+  if(state.loading[key]) return `<div class="loading">Đang tải chấm công…</div>`;
+  if(state.errors[key]) return errorPanel(state.errors[key], key, ()=>{invalidate(key); loadThenRender();});
+  let data;
+  try{ data = await loadData(key, parseAttendance); }catch(e){ return ''; }
+  const rec = data.find(r=>r.name===state.user.name);
+  if(!rec) return `<div class="panel"><div class="empty">Chưa tìm thấy dòng chấm công của bạn.</div></div>`;
+  return `
+    <div class="panel">
+      <div class="refresh-row">
+        <div class="section-title" style="margin:0;">Chấm công</div>
+        <button class="refresh-btn" onclick="invalidate('attendance'); loadThenRender();">↻ Làm mới</button>
+      </div>
+      <div class="att-summary">
+        <div class="att-chip"><b>${rec.total}</b><span>ngày công</span></div>
+        <div class="att-chip"><b>${rec.marks.length}</b><span>ngày trong bảng</span></div>
+      </div>
+      <div class="att-legend">
+        <span><i style="background:var(--teal);"></i> Công đầy đủ</span>
+        <span><i style="background:var(--amber);"></i> Nửa công</span>
+        <span><i style="background:var(--violet);"></i> Ký hiệu khác</span>
+      </div>
+      <div class="att-grid">
+        ${rec.marks.map(m=>`
+          <div class="att-cell ${m.status}">
+            <div class="d">${m.date.split('/')[0]}</div>
+            <div class="w">${m.weekday}</div>
+            ${m.status==='half' || m.status==='other' ? `<div class="mk">${m.label}</div>` : ''}
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+/* ============ MANAGER VIEW ============ */
+async function renderManagerSalary(){
+  const key='salary';
+  if(state.loading[key]) return `<div class="loading">Đang tải bảng lương…</div>`;
+  if(state.errors[key]) return errorPanel(state.errors[key], key, ()=>{invalidate(key); loadThenRender();});
+  let data;
+  try{ data = await loadData(key, parseSalary); }catch(e){ return ''; }
+  const cols = data.headers.filter(h=>h && h!=='STT');
+  return `
+    <div class="panel">
+      <div class="refresh-row">
+        <div class="section-title" style="margin:0;">Bảng lương — tất cả lái xe</div>
+        <button class="refresh-btn" onclick="invalidate('salary'); loadThenRender();">↻ Làm mới</button>
+      </div>
+      <div class="table-scroll"><table>
+        <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${data.records.map(r=>`<tr>${cols.map(c=>{
+            const isMoney = /lương|pc |tổng|thực lĩnh/i.test(c) && c!=='Hưởng lương CB?';
+            const v = r[c];
+            return `<td class="${isMoney?'mono-cell':''}">${v}</td>`;
+          }).join('')}</tr>`).join('')}
+        </tbody>
+      </table></div>
+    </div>`;
+}
+async function renderManagerAttendance(){
+  const key='attendance';
+  if(state.loading[key]) return `<div class="loading">Đang tải chấm công…</div>`;
+  if(state.errors[key]) return errorPanel(state.errors[key], key, ()=>{invalidate(key); loadThenRender();});
+  let data;
+  try{ data = await loadData(key, parseAttendance); }catch(e){ return ''; }
+  const dateCols = data[0] ? data[0].marks : [];
+  return `
+    <div class="panel">
+      <div class="refresh-row">
+        <div class="section-title" style="margin:0;">Chấm công — tất cả lái xe</div>
+        <button class="refresh-btn" onclick="invalidate('attendance'); loadThenRender();">↻ Làm mới</button>
+      </div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Họ và tên</th>${dateCols.map(d=>`<th>${d.date.split('/')[0]}/${d.date.split('/')[1]}</th>`).join('')}<th>Tổng công</th></tr></thead>
+        <tbody>
+          ${data.map(r=>`<tr><td>${r.name}</td>${r.marks.map(m=>`<td class="mono-cell">${m.label}</td>`).join('')}<td class="mono-cell">${r.total}</td></tr>`).join('')}
+        </tbody>
+      </table></div>
+    </div>`;
+}
+async function renderManagerTrips(){
+  const key='trips';
+  if(state.loading[key]) return `<div class="loading">Đang tải chuyến đi…</div>`;
+  if(state.errors[key]) return errorPanel(state.errors[key], key, ()=>{invalidate(key); loadThenRender();});
+  let trips;
+  try{ trips = await loadData(key, parseTrips); }catch(e){ return ''; }
+  const names = ['Tất cả', ...Array.from(new Set(trips.map(t=>t.driver))).sort()];
+  const filtered = state.managerFilter==='Tất cả' ? trips : trips.filter(t=>t.driver===state.managerFilter);
+  return `
+    <div class="panel">
+      <div class="refresh-row">
+        <div class="section-title" style="margin:0;">Chi tiết chuyến</div>
+        <button class="refresh-btn" onclick="invalidate('trips'); loadThenRender();">↻ Làm mới</button>
+      </div>
+      <div class="driver-filter">
+        ${names.map(n=>`<div class="chip-btn ${state.managerFilter===n?'active':''}" onclick="setManagerFilter('${n.replace(/'/g,"\\'")}')">${n}</div>`).join('')}
+      </div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Ngày</th><th>Lái xe</th><th>Tuyến</th><th>Lương chuyến</th><th>Phụ cấp</th><th>Tổng</th></tr></thead>
+        <tbody>
+          ${filtered.map(t=>`<tr><td>${t.date}</td><td>${t.driver}</td><td>${t.route||t.note||''}</td><td class="mono-cell">${formatMoney(t.wage)}</td><td class="mono-cell">${formatMoney(t.bonus)}</td><td class="mono-cell">${formatMoney(t.total)}</td></tr>`).join('')}
+        </tbody>
+      </table></div>
+    </div>`;
+}
+function setManagerFilter(n){ state.managerFilter=n; render(); }
+
+function errorPanel(msg, key, retry){
+  window.__retry = window.__retry || {};
+  window.__retry[key] = retry;
+  return `<div class="panel"><div class="empty" style="border-color:var(--red); color:var(--red);">${msg}</div>
+    <button class="refresh-btn" style="margin-top:12px;" onclick="window.__retry['${key}']()">Thử lại</button></div>`;
+}
+
+/* ============ MAIN RENDER ============ */
+async function loadThenRender(){ render(); }
+
+function render(){
+  const app = document.getElementById('app');
+  if(!state.user){ app.innerHTML = renderLogin(); return; }
+
+  if(state.user.role==='driver'){
+    const tabs = [
+      {id:'daily', label:'Thu nhập theo ngày'},
+      {id:'salary', label:'Bảng lương tháng'},
+      {id:'attendance', label:'Chấm công'},
+    ];
+    const tabsHtml = tabs.map(t=>`<button class="tab-btn ${state.driverTab===t.id?'active':''}" onclick="setDriverTab('${t.id}')">${t.label}</button>`).join('');
+    app.innerHTML = renderShell(`<div id="tabContent"><div class="loading">Đang tải…</div></div>`, tabsHtml);
+    const fn = state.driverTab==='daily' ? renderDailyTab : state.driverTab==='salary' ? renderSalaryTab : renderAttendanceTab;
+    fn().then(html=>{ const el = document.getElementById('tabContent'); if(el) el.innerHTML = html; });
+  } else {
+    const tabs = [
+      {id:'salary', label:'Bảng lương'},
+      {id:'attendance', label:'Chấm công'},
+      {id:'trips', label:'Chi tiết chuyến'},
+    ];
+    const tabsHtml = tabs.map(t=>`<button class="tab-btn ${state.managerTab===t.id?'active':''}" onclick="setManagerTab('${t.id}')">${t.label}</button>`).join('');
+    const extra = `<div style="margin-bottom:14px;"><a class="sheet-link" href="${SHEET_EDIT_URL}" target="_blank" rel="noopener">↗ Mở Google Sheet gốc để chỉnh sửa</a></div>`;
+    app.innerHTML = renderShell(`${extra}<div id="tabContent"><div class="loading">Đang tải…</div></div>`, tabsHtml);
+    const fn = state.managerTab==='salary' ? renderManagerSalary : state.managerTab==='attendance' ? renderManagerAttendance : renderManagerTrips;
+    fn().then(html=>{ const el = document.getElementById('tabContent'); if(el) el.innerHTML = html; });
+  }
+}
+function setDriverTab(id){ state.driverTab=id; state.openDay=null; render(); }
+function setManagerTab(id){ state.managerTab=id; render(); }
+
+render();
+</script>
+</body>
+</html>
