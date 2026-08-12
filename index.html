@@ -164,6 +164,10 @@
   .chip-btn{padding:7px 14px; border-radius:20px; border:1px solid var(--border); background:var(--panel-2); color:var(--text-dim); cursor:pointer; font-size:13px;}
   .chip-btn.active{background:var(--amber); color:#241a04; border-color:var(--amber); font-weight:700;}
   .sheet-link{display:inline-block; margin-top:4px; color:var(--amber); font-size:13px; text-decoration:none;}
+
+  /* modal đổi PIN */
+  .modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; padding:20px; z-index:50;}
+  .modal-card{width:100%; max-width:380px; background:var(--panel); border:1px solid var(--border); border-radius:20px; padding:28px 24px; box-shadow:0 30px 60px -20px rgba(0,0,0,0.6);}
 </style>
 </head>
 <body>
@@ -177,12 +181,12 @@ const SHEET_EDIT_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`
 const TAB_TRIPS  = 'Chi tiết chuyến';
 const TAB_SALARY = 'Bảng lương';
 const TAB_ATTEND = 'Chấm công';
+const TAB_PIN    = 'PIN';
 
-const USERS = [
-  { name: 'Nguyễn Văn Tùng', pin: '1995', role: 'driver' },
-  { name: 'Nguyễn Khắc Trường Minh', pin: '1996', role: 'driver' },
-  { name: 'Quản lý', pin: '1988', role: 'manager' },
-];
+// Dán URL Web App của Google Apps Script vào đây sau khi deploy (xem hướng dẫn
+// trong file APPS_SCRIPT_SETUP.md đi kèm). Nếu để trống, chức năng "Đổi mã PIN"
+// sẽ báo lỗi rõ ràng thay vì âm thầm không hoạt động.
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyUg43QSvIxQ9ho5vB2uxNc3YDRI_voLsPdstLUFtF3qo_y00tc0MzeJKyBa5agNVE8Ng/exec';
 
 /* ============ STATE ============ */
 const state = {
@@ -195,6 +199,10 @@ const state = {
   loading: {},
   errors: {},
   openDay: null,
+  users: null,
+  usersLoading: false,
+  usersError: null,
+  showPinModal: false,
 };
 
 /* ============ SHEETS API ============ */
@@ -227,6 +235,57 @@ function parseVNDate(s){
   const m = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s||'');
   if(!m) return 0;
   return new Date(+m[3], +m[2]-1, +m[1]).getTime();
+}
+async function sha256Hex(str){
+  const enc = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+/*
+  Danh sách người dùng + mã PIN (đã băm SHA-256) được đọc từ tab "PIN" trong
+  Google Sheet, thay vì để cứng trong code như trước — để khi đưa code lên
+  GitHub thì không lộ mã PIN thật của ai, và quản lý có thể tự thêm/sửa người
+  dùng ngay trong Sheet mà không cần sửa code.
+  Cấu trúc tab "PIN" cần có: cột "Họ và tên", "Vai trò" (driver/manager), "PIN Hash".
+*/
+async function parseUsers(){
+  const rows = await fetchRange(TAB_PIN, 'A1:C50');
+  const headerIdx = rows.findIndex(r=>r.some(c=>(c||'').trim()==='Họ và tên'));
+  if(headerIdx===-1) throw new Error(`Không tìm thấy cột "Họ và tên" trong tab "${TAB_PIN}". Xem hướng dẫn tạo tab PIN trong APPS_SCRIPT_SETUP.md.`);
+  const headers = rows[headerIdx].map(h=>(h||'').trim());
+  const nameCol = headers.indexOf('Họ và tên');
+  const roleCol = headers.indexOf('Vai trò');
+  const pinCol = headers.indexOf('PIN Hash');
+  if(pinCol===-1) throw new Error(`Không tìm thấy cột "PIN Hash" trong tab "${TAB_PIN}".`);
+  const users = [];
+  for(let i=headerIdx+1;i<rows.length;i++){
+    const r = rows[i];
+    if(!r || !r[nameCol] || !r[nameCol].trim()) continue;
+    users.push({
+      name: r[nameCol].trim(),
+      role: (r[roleCol]||'').trim().toLowerCase()==='manager' ? 'manager' : 'driver',
+      pinHash: (r[pinCol]||'').trim().toLowerCase(),
+    });
+  }
+  return users;
+}
+async function loadUsers(){
+  if(state.users) return state.users;
+  state.usersLoading = true; state.usersError = null; render();
+  try{
+    const users = await parseUsers();
+    state.users = users;
+    return users;
+  }catch(e){
+    state.usersError = e.message || String(e);
+    throw e;
+  }finally{
+    state.usersLoading = false; render();
+  }
+}
+async function retryLoadUsers(){
+  try{ await loadUsers(); }catch(e){}
 }
 
 async function parseTrips(){
@@ -346,7 +405,28 @@ function invalidate(key){ delete state.cache[key]; }
 
 /* ============ RENDER: LOGIN ============ */
 function renderLogin(){
-  const drivers = USERS.filter(u=>u.role==='driver');
+  if(state.usersLoading || (!state.users && !state.usersError)){
+    return `
+    <div class="login-wrap">
+      <div class="login-card">
+        <div class="login-eyebrow">Đội xe HAL</div>
+        <h1 class="login-title">Đăng nhập</h1>
+        <p class="login-sub">Đang tải danh sách người dùng…</p>
+      </div>
+    </div>`;
+  }
+  if(state.usersError){
+    return `
+    <div class="login-wrap">
+      <div class="login-card">
+        <div class="login-eyebrow">Đội xe HAL</div>
+        <h1 class="login-title">Đăng nhập</h1>
+        <div class="error-msg">${state.usersError}</div>
+        <button class="btn" onclick="retryLoadUsers()">Thử lại</button>
+      </div>
+    </div>`;
+  }
+  const drivers = state.users.filter(u=>u.role==='driver');
   return `
   <div class="login-wrap">
     <div class="login-card">
@@ -371,22 +451,92 @@ function renderLogin(){
   </div>`;
 }
 function setLoginRole(role){ state.loginRole = role; render(); }
-function doLogin(){
+async function doLogin(){
   const pin = document.getElementById('pinInput').value.trim();
   const errEl = document.getElementById('loginError');
-  let matched;
-  if(state.loginRole==='driver'){
-    const name = document.getElementById('driverSelect').value;
-    matched = USERS.find(u=>u.role==='driver' && u.name===name && u.pin===pin);
-  } else {
-    matched = USERS.find(u=>u.role==='manager' && u.pin===pin);
-  }
+  errEl.textContent = '';
+  if(!pin){ errEl.textContent = 'Vui lòng nhập mã PIN.'; return; }
+  const candidates = (state.users||[]).filter(u=>{
+    if(u.role!==state.loginRole) return false;
+    if(state.loginRole==='driver'){
+      const name = document.getElementById('driverSelect').value;
+      return u.name===name;
+    }
+    return true;
+  });
+  if(candidates.length===0){ errEl.textContent = 'Không tìm thấy người dùng phù hợp.'; return; }
+  const hash = await sha256Hex(pin);
+  const matched = candidates.find(u=>u.pinHash===hash);
   if(!matched){ errEl.textContent = 'Mã PIN không đúng. Vui lòng thử lại.'; return; }
   state.user = matched;
   state.cache = {}; state.errors = {};
   render();
 }
-function logout(){ state.user = null; state.cache={}; state.errors={}; render(); }
+function logout(){ state.user = null; state.cache={}; state.errors={}; state.showPinModal=false; render(); }
+
+/* ============ ĐỔI MÃ PIN ============ */
+function openPinModal(){ state.showPinModal = true; render(); }
+function closePinModal(){ state.showPinModal = false; render(); }
+function renderPinModal(){
+  if(!state.showPinModal) return '';
+  return `
+  <div class="modal-overlay" onclick="if(event.target===this) closePinModal()">
+    <div class="modal-card">
+      <div class="login-title" style="font-size:20px;">Đổi mã PIN</div>
+      <p class="login-sub">Áp dụng cho tài khoản: ${state.user.name}</p>
+      <label class="field-label">Mã PIN hiện tại</label>
+      <input type="password" id="oldPin" inputmode="numeric" maxlength="8" class="pin-dots">
+      <label class="field-label">Mã PIN mới (tối thiểu 4 số)</label>
+      <input type="password" id="newPin" inputmode="numeric" maxlength="8" class="pin-dots">
+      <label class="field-label">Nhập lại mã PIN mới</label>
+      <input type="password" id="newPin2" inputmode="numeric" maxlength="8" class="pin-dots">
+      <div id="pinModalMsg" class="error-msg"></div>
+      <button class="btn" id="pinSubmitBtn" onclick="submitChangePin()">Lưu mã PIN mới</button>
+      <button class="btn ghost" onclick="closePinModal()">Hủy</button>
+    </div>
+  </div>`;
+}
+async function submitChangePin(){
+  const oldPin = document.getElementById('oldPin').value.trim();
+  const newPin = document.getElementById('newPin').value.trim();
+  const newPin2 = document.getElementById('newPin2').value.trim();
+  const msgEl = document.getElementById('pinModalMsg');
+  const btn = document.getElementById('pinSubmitBtn');
+  msgEl.style.color = 'var(--red)';
+  msgEl.textContent = '';
+  if(!oldPin || !newPin || !newPin2){ msgEl.textContent = 'Vui lòng nhập đầy đủ các ô.'; return; }
+  if(newPin.length < 4){ msgEl.textContent = 'Mã PIN mới cần tối thiểu 4 số.'; return; }
+  if(newPin === oldPin){ msgEl.textContent = 'Mã PIN mới cần khác mã PIN hiện tại.'; return; }
+  if(newPin !== newPin2){ msgEl.textContent = 'Mã PIN mới nhập lại không khớp.'; return; }
+  if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('DÁN_URL')){
+    msgEl.textContent = 'Chưa cấu hình APPS_SCRIPT_URL trong code — xem hướng dẫn trong APPS_SCRIPT_SETUP.md.';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Đang lưu…';
+  try{
+    const oldHash = await sha256Hex(oldPin);
+    const newHash = await sha256Hex(newPin);
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action:'changePin', name: state.user.name, role: state.user.role, oldHash, newHash }),
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'Không thể đổi mã PIN.');
+    state.user.pinHash = newHash;
+    if(state.users){
+      const u = state.users.find(u=>u.name===state.user.name && u.role===state.user.role);
+      if(u) u.pinHash = newHash;
+    }
+    msgEl.style.color = 'var(--teal)';
+    msgEl.textContent = 'Đổi mã PIN thành công!';
+    setTimeout(()=>{ state.showPinModal = false; render(); }, 900);
+  }catch(e){
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = e.message || 'Có lỗi xảy ra, vui lòng thử lại.';
+    btn.disabled = false; btn.textContent = 'Lưu mã PIN mới';
+  }
+}
 
 /* ============ RENDER: SHELL ============ */
 function renderShell(innerHtml, tabsHtml){
@@ -398,11 +548,13 @@ function renderShell(innerHtml, tabsHtml){
         <span class="role">${state.user.role==='manager'?'QUẢN LÝ':'LÁI XE'}</span>
         <span class="who">${state.user.name.toUpperCase()}</span>
       </div>
+      <button class="logout" onclick="openPinModal()">Đổi mã PIN</button>
       <button class="logout" onclick="logout()">Đăng xuất</button>
     </div>
   </div>
   <div class="tabs">${tabsHtml}</div>
-  <div class="content">${innerHtml}</div>`;
+  <div class="content">${innerHtml}</div>
+  ${renderPinModal()}`;
 }
 
 /* ============ DRIVER: DAILY EARNINGS ============ */
@@ -640,7 +792,12 @@ function render(){
 function setDriverTab(id){ state.driverTab=id; state.openDay=null; render(); }
 function setManagerTab(id){ state.managerTab=id; render(); }
 
-render();
+/* ============ KHỞI ĐỘNG ============ */
+async function initApp(){
+  render();
+  try{ await loadUsers(); }catch(e){}
+}
+initApp();
 </script>
 </body>
 </html>
