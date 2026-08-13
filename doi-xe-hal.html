@@ -537,12 +537,28 @@ async function submitChangePin(){
   try{
     const oldHash = await sha256Hex(oldPin);
     const newHash = await sha256Hex(newPin);
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action:'changePin', name: state.user.name, role: state.user.role, oldHash, newHash }),
-    });
-    const data = await res.json();
+    let res;
+    try{
+      res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action:'changePin', name: state.user.name, role: state.user.role, oldHash, newHash }),
+      });
+    }catch(networkErr){
+      // Thường do URL Apps Script sai/đã xoá, hoặc chặn mạng (CORS/adblock/offline)
+      throw new Error('Không kết nối được tới máy chủ (Apps Script). Kiểm tra mạng, hoặc URL APPS_SCRIPT_URL có còn đúng không.');
+    }
+    const raw = await res.text();
+    let data;
+    try{
+      data = JSON.parse(raw);
+    }catch(parseErr){
+      // Apps Script không trả JSON như mong đợi -> thường là do deploy sai
+      // (chưa "New deployment" sau khi sửa Code.gs, hoặc "Ai có quyền truy cập"
+      // không phải "Anyone" nên bị chuyển hướng sang trang đăng nhập Google).
+      console.error('Phản hồi thô từ Apps Script (không phải JSON):', raw);
+      throw new Error('Máy chủ trả về dữ liệu không hợp lệ (có thể do chưa deploy đúng Apps Script — xem console để biết chi tiết, hoặc mở URL Apps Script trực tiếp bằng trình duyệt để kiểm tra).');
+    }
     if(!data.ok) throw new Error(data.error || 'Không thể đổi mã PIN.');
     state.user.pinHash = newHash;
     if(state.users){
