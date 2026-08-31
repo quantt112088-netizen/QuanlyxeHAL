@@ -1,0 +1,18 @@
+{
+  "2026-08": {
+    "sheetId": "1-Z9QEBUhM4_UcmTFCpBt1n9u557CXKGneEdw6ThiRz4",
+    "tabs": {
+      "trips": { "sheetName": "Chi tiết chuyến" },
+      "salary": { "sheetName": "Bảng lương" },
+      "attendance": { "sheetName": "Chấm công" }
+    }
+  },
+  "2026-09": {
+    "sheetId": "1p_it8Q0KJECq6F8vOL7tWbMOnKSEM4kPVgjL57LTyjE",
+    "tabs": {
+      "trips": { "gid": "767579772", "sheetName": "Chi tiết chuyến" },
+      "salary": { "gid": "774547220", "sheetName": "Bảng lương" },
+      "attendance": { "gid": "1350159733", "sheetName": "Chấm công" }
+    }
+  }
+}
