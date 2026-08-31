@@ -112,7 +112,20 @@ Ba tab trong file mới hiện cần giữ chính xác các tên: `Chi tiết ch
 
 Người dùng đăng nhập bằng email/mật khẩu Firebase. Trong website, mở tùy chọn **Đổi mật khẩu**, nhập mật khẩu hiện tại và mật khẩu mới. Firebase sẽ xác thực lại chính tài khoản đang đăng nhập trước khi cập nhật; người dùng không thể đổi mật khẩu của người khác.
 
-## 4. Triển khai GitHub Pages
+## 4. Chẩn đoán đăng nhập
+
+Trang đăng nhập kiểm tra bốn giá trị bắt buộc trong `config/firebase-config.js` (`apiKey`, `authDomain`, `projectId`, `appId`), có timeout 15 giây cho Firebase Authentication và cho lần đọc profile Firestore. Khi gặp lỗi, nút sẽ trở về trạng thái **Đăng nhập** và hiển thị thông báo thay vì chờ vô hạn.
+
+Mở trang web, nhấn **F12** (hoặc `Ctrl` + `Shift` + `I`), chọn tab **Console**, sau đó đăng nhập. Các log có tiền tố `[HAL Auth]` cho biết tiến trình dừng ở đâu:
+
+- `Bắt đầu đăng nhập Firebase` → yêu cầu Auth đã được gửi.
+- `Firebase Auth đăng nhập thành công` → email/mật khẩu hợp lệ.
+- `bắt đầu đọc hồ sơ Firestore` → đang đọc `users/<UID>` để lấy role.
+- `Đọc hồ sơ Firestore thành công/thất bại` → xác định lỗi profile hoặc Firestore Security Rules.
+
+Trước khi triển khai thật, kiểm tra **Firebase Console → Authentication → Settings → Authorized domains** có đúng domain GitHub Pages đang chạy website (ví dụ `ten-tai-khoan.github.io`) và domain tùy chỉnh (nếu có). Domain chưa được cấp phép là nguyên nhân phổ biến khiến đăng nhập thất bại.
+
+## 5. Triển khai GitHub Pages
 
 1. Commit và push toàn bộ các file, gồm cả thư mục `config/`.
 2. Trong GitHub repo, vào **Settings → Pages** và chọn branch/folder đang chứa `index.html`.
