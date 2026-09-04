@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwnerOrManager() {
+      let profile = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return profile.get("isOwner", false) == true
+        || profile.get("role", "") == "manager";
+    }
+
+    match /users/{userId} {
+      allow get: if request.auth != null && request.auth.uid == userId;
+      allow list, create, update, delete: if false;
+    }
+
+    match /sheetMonths/{month} {
+      allow get, list: if request.auth != null;
+      allow create, update: if request.auth != null && isOwnerOrManager();
+      allow delete: if false;
+    }
+  }
+}

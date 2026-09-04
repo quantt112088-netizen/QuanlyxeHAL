@@ -6,8 +6,9 @@ Website tĩnh cho đội xe HAL, chạy trên GitHub Pages. Website hiển thị
 
 - `index.html`: website chính.
 - `doi-xe-hal.html`: chuyển hướng tương thích về `index.html`.
-- `config/sheet-links.json`: liên kết Google Sheet cho từng tháng.
+- `config/sheet-links.json`: liên kết Google Sheet dự phòng (fallback/seed); cấu hình chính được quản lý trong Firestore.
 - `config/firebase-config.js`: Firebase Web configuration (cần điền trước khi dùng đăng nhập).
+- `firestore.rules`: Security Rules cho Firestore (dán vào Firebase Console khi triển khai).
 
 ## 1. Cấu hình Firebase Authentication
 
@@ -38,7 +39,26 @@ Tài khoản quản lý dùng:
 }
 ```
 
+Tài khoản chủ (owner) dùng một trong hai dạng sau — cả hai đều có quyền quản lý dữ liệu tháng:
+
+```json
+{
+  "isOwner": true
+}
+```
+
+hoặc:
+
+```json
+{
+  "role": "manager",
+  "isOwner": true
+}
+```
+
 `driverName` phải trùng hoàn toàn với cột **Họ và tên/Tên lái xe** trong dữ liệu tháng. Website không có form tự đăng ký; đây là chủ ý để người đăng ký không tự nhận quyền quản lý hoặc chọn dữ liệu của lái xe khác.
+
+Quyền quản lý dữ liệu tháng được cấp khi profile có `isOwner: true` **hoặc** `role: "manager"`. Tài khoản có `isOwner: true` nhưng không khai `role` hợp lệ được coi là quản lý.
 
 ### Firestore Security Rules
 
@@ -48,6 +68,12 @@ Dán rules dưới đây vào **Firestore Database → Rules**, sau đó Publish
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isOwnerOrManager() {
+      let profile = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return profile.get("isOwner", false) == true
+        || profile.get("role", "") == "manager";
+    }
+
     match /users/{userId} {
       allow get: if request.auth != null && request.auth.uid == userId;
       allow list, create, update, delete: if false;
@@ -55,14 +81,14 @@ service cloud.firestore {
 
     match /sheetMonths/{month} {
       allow get, list: if request.auth != null;
-      allow create, update, delete: if request.auth != null
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "manager";
+      allow create, update: if request.auth != null && isOwnerOrManager();
+      allow delete: if false;
     }
   }
 }
 ```
 
-Quản trị viên cần tạo/sửa profile qua Firebase Console, Firebase Admin SDK hoặc quy trình nội bộ đáng tin cậy — không thực hiện bằng website này.
+Đoạn trên trùng với file `firestore.rules` trong repo. Sau khi thay đổi rules, phải nhấn **Publish** trong Firebase Console. Quản trị viên cần tạo/sửa profile qua Firebase Console, Firebase Admin SDK hoặc quy trình nội bộ đáng tin cậy — không thực hiện bằng website này. Website chỉ cho phép lưu/cập nhật cấu hình tháng, không cho xóa.
 
 ## 2. Thêm Google Sheet cho tháng mới
 
@@ -72,35 +98,30 @@ Mỗi tháng sử dụng một file Google Sheet riêng và gồm ba tab:
 - `Bảng lương`
 - `Chấm công`
 
-Mở từng tab trong Google Sheet; URL sẽ có dạng `.../edit?gid=123456789#gid=123456789`. Lấy giá trị `gid` của từng tab, sau đó thêm một object vào `config/sheet-links.json`:
+### Quản lý trực tiếp trong website
 
-```json
-{
-  "2026-10": {
-    "sheetId": "ID_FILE_GOOGLE_SHEET_THANG_10",
-    "tabs": {
-      "trips": { "gid": "GID_CHI_TIET_CHUYEN" },
-      "salary": { "gid": "GID_BANG_LUONG" },
-      "attendance": { "gid": "GID_CHAM_CONG" }
-    }
-  }
-}
-```
+Đăng nhập bằng tài khoản có `isOwner: true` hoặc `role: "manager"`, rồi:
 
-Chỉ cần thêm một object theo tháng (`YYYY-MM`), **không cần sửa logic trong `index.html`**. Website tự chọn tháng hiện tại theo ngày hệ thống của thiết bị; khi tháng đó chưa được cấu hình, website hiển thị “Chưa có dữ liệu tháng này” và cho phép chọn tháng cũ.
+1. Chọn **Quản lý dữ liệu tháng** ở thanh bên.
+2. Chọn tháng/năm cần thêm hoặc cập nhật.
+3. Dán URL Google Sheet, ví dụ `https://docs.google.com/spreadsheets/d/.../edit`.
+4. Nhấn **Lưu tháng**.
 
-Cấu hình tháng 9/2026 đang có sẵn:
+Website lấy Sheet ID từ URL, lưu document `sheetMonths/<YYYY-MM>` vào Firestore và cập nhật cấu hình đang chạy qua listener thời gian thực. Sau khi lưu, tháng đó có thể được sử dụng ngay; **không cần sửa file JSON, sửa code, commit hoặc push GitHub**.
 
-- Sheet ID: `1p_it8Q0KJECq6F8vOL7tWbMOnKSEM4kPVgjL57LTyjE`
-- Chi tiết chuyến: GID `767579772`
-- Bảng lương: GID `774547220`
-- Chấm công: GID `1350159733`
+Danh sách trong cửa sổ quản lý cho biết cấu hình nào đến từ **Firestore** và cấu hình nào chỉ đến từ **File tĩnh**. Chọn **Chỉnh sửa** để đưa một tháng file tĩnh lên Firestore hoặc cập nhật URL/GID của tháng đã lưu. Giao diện chỉ hỗ trợ lưu/cập nhật, không có chức năng xóa.
 
-### Thêm tháng ngay trong app (quản lý)
+### GID từng tab (không bắt buộc)
 
-Sau khi đăng nhập bằng tài khoản có `role: "manager"`, nút **Thêm tháng** xuất hiện ở thanh bên. Chọn tháng và dán URL file Google Sheet; app tự lấy Sheet ID, lưu vào Firestore collection `sheetMonths`, sau đó cập nhật danh sách tháng cho tất cả tài khoản đang mở website.
+Nếu ba tab giữ đúng tên chuẩn ở trên, có thể để trống toàn bộ GID; website tải CSV theo tên tab. Để cấu hình chắc chắn hơn hoặc khi tên tab khác, mở phần **GID từng tab (không bắt buộc)** và nhập GID cho từng tab. GID là dãy số xuất hiện trong URL khi mở tab, ví dụ `.../edit#gid=123456789`.
 
-Ba tab trong file mới hiện cần giữ chính xác các tên: `Chi tiết chuyến`, `Bảng lương`, `Chấm công`. App tải CSV theo tên tab nên quản lý không phải tìm GID. Khi form hoặc tên tab thay đổi, cần cập nhật parser/cấu hình tương ứng.
+Nếu URL chính được dán có `gid=...` và ô GID **Chi tiết chuyến** đang trống, website dùng GID đó cho tab Chi tiết chuyến. Khi chỉnh sửa một cấu hình Firestore, để trống một ô GID rồi lưu sẽ xóa GID cũ của tab đó và quay về tải theo tên tab chuẩn.
+
+### File cấu hình dự phòng
+
+`config/sheet-links.json` chỉ còn là fallback/seed để website vẫn có các tháng mặc định khi Firestore chưa có dữ liệu hoặc tạm thời không đọc được. Khi cùng một tháng tồn tại ở cả hai nơi, cấu hình Firestore được ưu tiên. Quy trình thêm tháng thông thường không chỉnh file này.
+
+Website tự chọn tháng hiện tại theo ngày hệ thống của thiết bị; khi tháng đó chưa được cấu hình, website hiển thị “Chưa có dữ liệu tháng này” và cho phép chọn tháng cũ.
 
 ### Quyền chia sẻ Google Sheet
 
@@ -116,7 +137,7 @@ Người dùng đăng nhập bằng email/mật khẩu Firebase. Trong website, 
 
 Trang đăng nhập kiểm tra bốn giá trị bắt buộc trong `config/firebase-config.js` (`apiKey`, `authDomain`, `projectId`, `appId`), có timeout 15 giây cho Firebase Authentication và cho lần đọc profile Firestore. Khi gặp lỗi, nút sẽ trở về trạng thái **Đăng nhập** và hiển thị thông báo thay vì chờ vô hạn.
 
-Mở trang web, nhấn **F12** (hoặc `Ctrl` + `Shift` + `I`), chọn tab **Console**, sau đó đăng nhập. Các log có tiền tố `[HAL Auth]` cho biết tiến trình dừng ở đâu:
+Mở trang web, nhấn **F12** (hoặc `Ctrl` + `Shift` + `I`), chọn tab **Console**, sau đó đăng nhập. Các log có tiền tố `[Hoàng Anh Auth]` cho biết tiến trình dừng ở đâu:
 
 - `Bắt đầu đăng nhập Firebase` → yêu cầu Auth đã được gửi.
 - `Firebase Auth đăng nhập thành công` → email/mật khẩu hợp lệ.
