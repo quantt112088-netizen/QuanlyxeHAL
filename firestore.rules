@@ -17,5 +17,15 @@ service cloud.firestore {
       allow create, update: if request.auth != null && isOwnerOrManager();
       allow delete: if false;
     }
+
+    match /planCatalog/{category}/items/{itemId} {
+      allow read, create, update, delete: if request.auth != null
+        && isOwnerOrManager();
+    }
+
+    match /planEntries/{entryId} {
+      allow read, create, update, delete: if request.auth != null
+        && isOwnerOrManager();
+    }
   }
 }
