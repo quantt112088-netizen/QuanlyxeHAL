@@ -84,11 +84,33 @@ service cloud.firestore {
       allow create, update: if request.auth != null && isOwnerOrManager();
       allow delete: if false;
     }
+
+    match /planCatalog/{category}/items/{itemId} {
+      allow read, create, update, delete: if request.auth != null
+        && isOwnerOrManager();
+    }
+
+    match /planEntries/{entryId} {
+      allow read, create, update, delete: if request.auth != null
+        && isOwnerOrManager();
+    }
   }
 }
 ```
 
 Đoạn trên trùng với file `firestore.rules` trong repo. Sau khi thay đổi rules, phải nhấn **Publish** trong Firebase Console. Quản trị viên cần tạo/sửa profile qua Firebase Console, Firebase Admin SDK hoặc quy trình nội bộ đáng tin cậy — không thực hiện bằng website này. Website chỉ cho phép lưu/cập nhật cấu hình tháng, không cho xóa.
+
+### Nhập liệu (Beta) — Plan trên Firestore
+
+Khu vực **Nhập liệu (Beta)** chỉ xuất hiện với tài khoản quản lý/chủ tài khoản. Đây là luồng thử nghiệm độc lập hoàn toàn với ba tab Google Sheets đang dùng:
+
+- `planCatalog/{customers|drivers|vehicles}/items/{itemId}`: danh mục Khách hàng, Lái xe và Biển kiểm soát.
+- `planEntries/{entryId}`: dữ liệu chuyến Plan thô, có trường `month` (`YYYY-MM`) để lọc kỳ.
+- Không đọc hoặc ghi Google Sheets, không thay đổi công thức lương/chi phí hiện có.
+- Cột FCR không thuộc schema Beta.
+- Nút **Xuất Excel** tạo tệp `.xlsx` trong trình duyệt bằng SheetJS CDN, theo đúng thứ tự cột form Plan Beta.
+
+Sau khi triển khai code mới, dán nội dung `firestore.rules` cập nhật vào **Firestore Database → Rules** và nhấn **Publish**. Trước bước này, Firestore sẽ từ chối đọc/ghi các collection Beta theo rules cũ.
 
 ## 2. Thêm Google Sheet cho tháng mới
 
