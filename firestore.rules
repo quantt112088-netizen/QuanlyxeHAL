@@ -27,5 +27,15 @@ service cloud.firestore {
       allow read, create, update, delete: if request.auth != null
         && isOwnerOrManager();
     }
+
+    match /planSettings/{settingId} {
+      allow read, create, update, delete: if request.auth != null
+        && isOwnerOrManager();
+    }
+
+    match /planSalaryAdjustments/{adjustmentId} {
+      allow read, create, update, delete: if request.auth != null
+        && isOwnerOrManager();
+    }
   }
 }
