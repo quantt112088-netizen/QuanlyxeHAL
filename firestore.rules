@@ -28,6 +28,11 @@ service cloud.firestore {
         && isOwnerOrManager();
     }
 
+    match /repairEntries/{entryId} {
+      allow read, create, update, delete: if request.auth != null
+        && isOwnerOrManager();
+    }
+
     match /planSettings/{settingId} {
       allow read, create, update, delete: if request.auth != null
         && isOwnerOrManager();

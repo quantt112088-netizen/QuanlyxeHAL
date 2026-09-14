@@ -95,6 +95,11 @@ service cloud.firestore {
         && isOwnerOrManager();
     }
 
+    match /repairEntries/{entryId} {
+      allow read, create, update, delete: if request.auth != null
+        && isOwnerOrManager();
+    }
+
     match /planSettings/{settingId} {
       allow read, create, update, delete: if request.auth != null
         && isOwnerOrManager();
@@ -164,6 +169,18 @@ Bảng kê SUB và Chấm công (Beta) dùng cùng một kỳ mặc định, tí
 - **Phần A** tổng hợp 14 hạng mục: `vehicle_revenue`, `warehouse_fee`, `loading_fee`, `consolidation_fee`, `sunday_fee`, `wait_time_fee`, `second_meal_fee`, `overtime_fee`, `luong_lai_xe_theo_chuyen`, `turnaround_fee`, `rot_diem_cho_xe`, `fuel`, `epass`, `trip_extra_cost`.
 - **TỔNG CHI PHÍ** chỉ cộng dòng 1–8 và 10–14. `luong_lai_xe_theo_chuyen` (dòng 9) chỉ để tham khảo, vì đã nằm trong `vehicle_revenue`; hệ thống tuyệt đối không cộng lại khoản này.
 - **Phần B** lặp toàn bộ khách hàng trong danh mục, kể cả khách hàng không có chuyến. Với từng khách hàng, `customer_revenue` là tổng Nhóm C (`rot_diem_thu_khach + customer_waiting_fee + overnight_fee + other_customer_charge + cuoc`), `total_cost` là chi phí của chính các chuyến của khách đó theo công thức Phần A (trừ `luong_lai_xe_theo_chuyen`), và `profit = customer_revenue - total_cost`. Hàng tổng chỉ tổng hợp các dòng khách hàng đang hiển thị.
+
+#### Sửa chữa (Beta)
+
+Nhật ký sửa chữa/bảo dưỡng xe thực tế, lưu riêng trong `repairEntries/{entryId}`. Nguồn này độc lập hoàn toàn với `planEntries`, không suy ra từ chuyến Plan và không cộng qua lại với **Chi phí vận hành (Beta)**. Danh sách, tổng hợp theo xe và xuất Excel đều dùng tháng dương lịch (`YYYY-MM`) suy ra từ `ngay_gio`; không có trường tháng được lưu trong document.
+
+- `ngay_gio` (bắt buộc, `YYYY-MM-DD`), `bien_kiem_soat` (dropdown danh mục Biển kiểm soát), `lai_xe` (dropdown danh mục Lái xe), `cong_viec` (bắt buộc: `Sửa chữa`, `Bảo dưỡng`).
+- `giam_sat_sua_chua`, `don_vi_cung_cap`, `nhom_sua_chua` là text tự do có datalist từ các giá trị đã nhập trước đó trong `repairEntries`; không có collection danh mục riêng.
+- `so_luong` mặc định `1`; `vat_percent` mặc định `8`.
+- `thanh_tien_chua_vat` là số tiền nhập tay, không nhân tự động từ `so_luong × don_gia`. `tong_tien = round(thanh_tien_chua_vat × (1 + vat_percent / 100))`, hiển thị readonly và lưu snapshot.
+- `thanh_toan` (`Ghi nợ`, `Tiền mặt`, `Chuyển khoản`) và `chung_tu` (`Hóa đơn VAT`, `Phiếu thu`, `Khác`) là dropdown tùy chọn.
+- Thứ tự thô của form/bảng/xuất Excel là: `ngay_gio`, `km_hien_tai`, `bien_kiem_soat`, `lai_xe`, `giam_sat_sua_chua`, `don_vi_cung_cap`, `code`, `cong_viec`, `nhom_sua_chua`, `dien_giai`, `dvt`, `so_luong`, `don_gia`, `thanh_tien_chua_vat`, `vat_percent`, `tong_tien`, `don_vi_chiu_trach_nhiem`, `thanh_toan`, `chung_tu`, `so_dntt`, `xac_nhan_thanh_toan`, `ghi_chu`, `so_hoa_don`.
+- Trang **Nhập sửa chữa** lưu/sửa qua `repairEntries`; trang **Sửa chữa (Beta)** lọc theo tháng dương lịch, tìm theo Biển kiểm soát/Đơn vị cung cấp, sửa/xóa từng dòng, tổng hợp `tong_tien` theo từng Biển kiểm soát trong tháng rồi thêm hàng **TỔNG CỘNG**, và xuất XLSX thô toàn bộ dòng trong tháng.
 
 #### Tham số và Bảng lương (Beta)
 
