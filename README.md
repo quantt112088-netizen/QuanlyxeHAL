@@ -157,6 +157,14 @@ Bảng kê SUB và Chấm công (Beta) dùng cùng một kỳ mặc định, tí
 - Bảng kê SUB lọc theo đúng tên khách hàng và `pickup_date` trong kỳ; chỉ dùng Nhóm C. Mỗi dòng tính `total_fare = rot_diem_thu_khach + customer_waiting_fee + overnight_fee + other_customer_charge + cuoc`, `vat = round(total_fare × 8%)`, và `total_payment = total_fare + vat`. Báo cáo/XLSX hiển thị metadata khách hàng theo danh mục.
 - Chấm công được suy ra trong bộ nhớ từ tên lái xe đã chuẩn hóa và `pickup_date`; không ghi document chấm công và không có thao tác sửa tay. Mọi lái xe trong danh mục đều hiển thị. Một hay nhiều chuyến cùng ngày chỉ đánh một `X`; Chủ nhật có thể có `X` nhưng không cộng ngày công.
 
+#### Chi phí vận hành (Beta)
+
+Đây là trang báo cáo chỉ đọc, dùng duy nhất `planEntries` trong kỳ 26 tháng trước đến 25 tháng hiện tại. Trang không có form nhập liệu, không tạo collection và không ghi Firestore.
+
+- **Phần A** tổng hợp 14 hạng mục: `vehicle_revenue`, `warehouse_fee`, `loading_fee`, `consolidation_fee`, `sunday_fee`, `wait_time_fee`, `second_meal_fee`, `overtime_fee`, `luong_lai_xe_theo_chuyen`, `turnaround_fee`, `rot_diem_cho_xe`, `fuel`, `epass`, `trip_extra_cost`.
+- **TỔNG CHI PHÍ** chỉ cộng dòng 1–8 và 10–14. `luong_lai_xe_theo_chuyen` (dòng 9) chỉ để tham khảo, vì đã nằm trong `vehicle_revenue`; hệ thống tuyệt đối không cộng lại khoản này.
+- **Phần B** lặp toàn bộ khách hàng trong danh mục, kể cả khách hàng không có chuyến. Với từng khách hàng, `customer_revenue` là tổng Nhóm C (`rot_diem_thu_khach + customer_waiting_fee + overnight_fee + other_customer_charge + cuoc`), `total_cost` là chi phí của chính các chuyến của khách đó theo công thức Phần A (trừ `luong_lai_xe_theo_chuyen`), và `profit = customer_revenue - total_cost`. Hàng tổng chỉ tổng hợp các dòng khách hàng đang hiển thị.
+
 #### Tham số và Bảng lương (Beta)
 
 Tham số lương mặc định chỉ hiển thị khi chưa có `planSettings/salary_parameters`; chúng chỉ được ghi sau khi quản lý nhấn lưu. Bảng lương dùng ngày công Beta, toàn bộ lái xe trong danh mục và tổng Nhóm A của các chuyến cùng kỳ.
