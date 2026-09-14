@@ -116,10 +116,11 @@ Khu vực **Nhập liệu (Beta)** chỉ xuất hiện với tài khoản quản
 
 #### Collections Beta
 
-- `planCatalog/{customers|drivers|vehicles}/items/{itemId}`: danh mục dùng chung.
+- `planCatalog/{customers|drivers|vehicles|cargos}/items/{itemId}`: danh mục dùng chung.
   - Khách hàng: `name`, tùy chọn `company_name`, `company_address`, `tax_code`.
   - Lái xe: `name`, tùy chọn `vehicle_received_date` (`YYYY-MM-DD`), `base_salary_status_override` (`Có`, `Không`, `Thử việc`).
   - Biển kiểm soát: `name`, tùy chọn `tonnage`.
+  - Cargo: `name`, `routes` (mảng các tuyến vận chuyển). Trong Danh mục có nút **Nạp 22 Cargo mẫu**; nút chỉ thêm Cargo còn thiếu theo tên đã chuẩn hóa và không ghi đè Cargo đã tồn tại.
 - `planEntries/{entryId}`: chuyến Plan, với các key tiếng Anh `snake_case`. Tất cả record mới ghi theo schema này; record camelCase cũ vẫn đọc được và chỉ được chuẩn hóa khi chính record đó được lưu lại.
 - `planSettings/salary_parameters`: tham số lương chung Beta.
 - `planSalaryAdjustments/{driverId}_{rangeStart}_{rangeEnd}`: điều chỉnh `leave_pay` và `housing_eligible` theo lái xe/kỳ.
@@ -142,8 +143,10 @@ other_customer_charge, cuoc
 ```
 
 - Bắt buộc nhập `customer`, `pickup_date` và `driver`.
+- `cargo` là dropdown danh mục Cargo; `route` là dropdown phụ thuộc tuyến của Cargo đã chọn. `route` chỉ tự chọn sẵn khi Cargo có đúng một tuyến và vẫn có thể đổi lại. Lựa chọn cuối **Khác (nhập tay)** mở ô nhập tuyến phát sinh; Cargo không có trong danh mục dùng chế độ nhập tay cả hai ô. Dữ liệu lưu vẫn là chuỗi `cargo`/`route`.
 - `km_trip = km_return - km_pickup` và `luong_lai_xe_theo_chuyen = round(vehicle_revenue × 16%)` được tính tự động.
 - **Phí trả lái xe** chỉ là tiêu đề nhóm, không phải field.
+- Form dùng 4 khối trình bày: `Doanh thu trả cho xe` đứng riêng; đỏ cho chi phí lái xe được nhận; xanh lá cho chi phí khi xe hoạt động; xanh dương cho doanh thu thu khách hàng. Đây chỉ là thay đổi trình bày, không đổi key, thứ tự xuất Excel hay công thức.
 - Nhóm A là chi phí trả cho xe/lái xe; Nhóm B là chi phí của chuyến; Nhóm C là cước tính khách. `rot_diem_cho_xe` và `rot_diem_thu_khach` là hai field độc lập.
 - Bảng xem/sửa hỗ trợ tìm Khách hàng/Lái xe/Tuyến, sửa/xóa, tổng nhanh `vehicle_revenue` và xuất XLSX thô bằng SheetJS CDN.
 
