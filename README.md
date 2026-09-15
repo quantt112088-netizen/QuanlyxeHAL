@@ -122,7 +122,7 @@ Khu vực **Nhập liệu (Beta)** chỉ xuất hiện với tài khoản quản
 #### Collections Beta
 
 - `planCatalog/{customers|drivers|vehicles|cargos}/items/{itemId}`: danh mục dùng chung.
-  - Khách hàng: `name`, tùy chọn `company_name`, `company_address`, `tax_code`.
+  - Khách hàng: `name`, tùy chọn `company_name`, `company_address`, `tax_code`, `company_email`.
   - Lái xe: `name`, tùy chọn `vehicle_received_date` (`YYYY-MM-DD`), `base_salary_status_override` (`Có`, `Không`, `Thử việc`).
   - Biển kiểm soát: `name`, tùy chọn `tonnage`.
   - Cargo: `name`, `routes` (mảng các tuyến vận chuyển). Trong Danh mục có nút **Nạp 22 Cargo mẫu**; nút chỉ thêm Cargo còn thiếu theo tên đã chuẩn hóa và không ghi đè Cargo đã tồn tại.
@@ -153,18 +153,20 @@ other_customer_charge, cuoc
 - **Phí trả lái xe** chỉ là tiêu đề nhóm, không phải field.
 - Form dùng 4 khối trình bày: `Doanh thu trả cho xe` đứng riêng; đỏ cho chi phí lái xe được nhận; xanh lá cho chi phí khi xe hoạt động; xanh dương cho doanh thu thu khách hàng. Đây chỉ là thay đổi trình bày, không đổi key, thứ tự xuất Excel hay công thức.
 - Nhóm A là chi phí trả cho xe/lái xe; Nhóm B là chi phí của chuyến; Nhóm C là cước tính khách. `rot_diem_cho_xe` và `rot_diem_thu_khach` là hai field độc lập.
-- Bảng xem/sửa hỗ trợ tìm Khách hàng/Lái xe/Tuyến, sửa/xóa, tổng nhanh `vehicle_revenue` và xuất XLSX thô bằng SheetJS CDN.
+- Bảng xem/sửa hỗ trợ lọc theo tháng hoặc khoảng `Từ ngày`/`Đến ngày` (khoảng ngày ưu tiên tháng), Biển kiểm soát và từ khóa Khách hàng/Lái xe/Tuyến theo điều kiện AND. Tổng số dòng và `vehicle_revenue` luôn tính từ đúng tập dữ liệu đã lọc.
+- Xuất Plan dùng XLSX có định dạng: thông tin chuyến màu navy, Nhóm A đỏ, Nhóm B xanh lá, Nhóm C xanh dương; ngày dùng `dd/mm/yyyy`, tiền dùng `#,##0`.
 
 #### Bảng kê SUB và Chấm công (Beta)
 
 Bảng kê SUB và Chấm công (Beta) dùng cùng một kỳ mặc định, tính bao gồm từ ngày 26 tháng trước đến ngày 25 tháng hiện tại.
 
-- Bảng kê SUB lọc theo đúng tên khách hàng và `pickup_date` trong kỳ; chỉ dùng Nhóm C. Mỗi dòng tính `total_fare = rot_diem_thu_khach + customer_waiting_fee + overnight_fee + other_customer_charge + cuoc`, `vat = round(total_fare × 8%)`, và `total_payment = total_fare + vat`. Báo cáo/XLSX hiển thị metadata khách hàng theo danh mục.
+- Bảng kê SUB lọc theo đúng tên khách hàng và `pickup_date` trong kỳ; chỉ dùng Nhóm C. Mỗi dòng tính `total_fare = rot_diem_thu_khach + customer_waiting_fee + overnight_fee + other_customer_charge + cuoc`, `vat = round(total_fare × 8%)`, và `total_payment = total_fare + vat`. Báo cáo/XLSX hiển thị `company_name`, `company_address`, `tax_code`, `company_email` của khách hàng theo danh mục; thông tin thiếu hiển thị **Chưa cập nhật**.
+- XLSX SUB có tiêu đề/metadata theo mẫu Hoàng Anh Logistics, header xanh lá, ngày `dd/mm/yyyy`, tiền `#,##0`; cột dữ liệu dừng ở **Tổng thanh toán (đã gồm VAT)** theo mẫu xuất.
 - Chấm công được suy ra trong bộ nhớ từ tên lái xe đã chuẩn hóa và `pickup_date`; không ghi document chấm công và không có thao tác sửa tay. Mọi lái xe trong danh mục đều hiển thị. Một hay nhiều chuyến cùng ngày chỉ đánh một `X`; Chủ nhật có thể có `X` nhưng không cộng ngày công.
 
 #### Chi phí vận hành (Beta)
 
-Đây là trang báo cáo chỉ đọc, dùng duy nhất `planEntries` trong kỳ 26 tháng trước đến 25 tháng hiện tại. Trang không có form nhập liệu, không tạo collection và không ghi Firestore.
+Đây là trang báo cáo chỉ đọc, dùng duy nhất `planEntries` trong kỳ 26 tháng trước đến 25 tháng hiện tại. Trang không có form nhập liệu, không tạo collection và không ghi Firestore. Nút xuất XLSX tạo hai sheet có header màu, ngày `dd/mm/yyyy` và tiền `#,##0`: tổng hợp chi phí và doanh thu/chi phí/lợi nhuận theo khách hàng.
 
 - **Phần A** tổng hợp 14 hạng mục: `vehicle_revenue`, `warehouse_fee`, `loading_fee`, `consolidation_fee`, `sunday_fee`, `wait_time_fee`, `second_meal_fee`, `overtime_fee`, `luong_lai_xe_theo_chuyen`, `turnaround_fee`, `rot_diem_cho_xe`, `fuel`, `epass`, `trip_extra_cost`.
 - **TỔNG CHI PHÍ** chỉ cộng dòng 1–8 và 10–14. `luong_lai_xe_theo_chuyen` (dòng 9) chỉ để tham khảo, vì đã nằm trong `vehicle_revenue`; hệ thống tuyệt đối không cộng lại khoản này.
@@ -180,7 +182,7 @@ Nhật ký sửa chữa/bảo dưỡng xe thực tế, lưu riêng trong `repair
 - `thanh_tien_chua_vat` là số tiền nhập tay, không nhân tự động từ `so_luong × don_gia`. `tong_tien = round(thanh_tien_chua_vat × (1 + vat_percent / 100))`, hiển thị readonly và lưu snapshot.
 - `thanh_toan` (`Ghi nợ`, `Tiền mặt`, `Chuyển khoản`) và `chung_tu` (`Hóa đơn VAT`, `Phiếu thu`, `Khác`) là dropdown tùy chọn.
 - Thứ tự thô của form/bảng/xuất Excel là: `ngay_gio`, `km_hien_tai`, `bien_kiem_soat`, `lai_xe`, `giam_sat_sua_chua`, `don_vi_cung_cap`, `code`, `cong_viec`, `nhom_sua_chua`, `dien_giai`, `dvt`, `so_luong`, `don_gia`, `thanh_tien_chua_vat`, `vat_percent`, `tong_tien`, `don_vi_chiu_trach_nhiem`, `thanh_toan`, `chung_tu`, `so_dntt`, `xac_nhan_thanh_toan`, `ghi_chu`, `so_hoa_don`.
-- Trang **Nhập sửa chữa** lưu/sửa qua `repairEntries`; trang **Sửa chữa (Beta)** lọc theo tháng dương lịch, tìm theo Biển kiểm soát/Đơn vị cung cấp, sửa/xóa từng dòng, tổng hợp `tong_tien` theo từng Biển kiểm soát trong tháng rồi thêm hàng **TỔNG CỘNG**, và xuất XLSX thô toàn bộ dòng trong tháng.
+- Trang **Nhập sửa chữa** lưu/sửa qua `repairEntries`; trang **Sửa chữa (Beta)** lọc theo tháng dương lịch, tìm theo Biển kiểm soát/Đơn vị cung cấp, sửa/xóa từng dòng, tổng hợp `tong_tien` theo từng Biển kiểm soát trong tháng rồi thêm hàng **TỔNG CỘNG**, và xuất XLSX định dạng màu header, ngày `dd/mm/yyyy`, tiền `#,##0`.
 
 #### Tham số và Bảng lương (Beta)
 
