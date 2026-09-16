@@ -121,14 +121,15 @@ Khu vực **Nhập liệu (Beta)** chỉ xuất hiện với tài khoản quản
 
 #### Collections Beta
 
-- `planCatalog/{customers|drivers|vehicles|cargos}/items/{itemId}`: danh mục dùng chung.
+- `planCatalog/{customers|drivers|vehicles|cargos}/items/{itemId}`: các danh mục Beta.
+  - Trang **Danh mục dùng chung** chỉ có Khách hàng, Lái xe và Biển kiểm soát; từng nhóm là accordion và đóng mặc định.
   - Khách hàng: `name`, tùy chọn `company_name`, `company_address`, `tax_code`, `company_email`.
-  - Lái xe: `name`, tùy chọn `vehicle_received_date` (`YYYY-MM-DD`), `base_salary_status_override` (`Có`, `Không`, `Thử việc`).
+  - Lái xe: `name`, tùy chọn `vehicle_received_date` (`YYYY-MM-DD`). Ngày nhận xe là nguồn duy nhất xác định trạng thái lương cơ bản.
   - Biển kiểm soát: `name`, tùy chọn `tonnage`.
-  - Cargo: `name`, `routes` (mảng các tuyến vận chuyển). Trong Danh mục có nút **Nạp 22 Cargo mẫu**; nút chỉ thêm Cargo còn thiếu theo tên đã chuẩn hóa và không ghi đè Cargo đã tồn tại.
+  - Trang **Danh mục Cargo & Tuyến vận chuyển** quản lý Cargo: `name`, `routes` (mảng tối đa 7 tuyến), một Cargo trên mỗi dòng bảng. Nút **Nạp 26 Cargo mẫu** tạo Cargo chưa có và cập nhật `name`/`routes` của Cargo trùng tên đã chuẩn hóa theo bộ mẫu.
 - `planEntries/{entryId}`: chuyến Plan, với các key tiếng Anh `snake_case`. Tất cả record mới ghi theo schema này; record camelCase cũ vẫn đọc được và chỉ được chuẩn hóa khi chính record đó được lưu lại.
 - `planSettings/salary_parameters`: tham số lương chung Beta.
-- `planSalaryAdjustments/{driverId}_{rangeStart}_{rangeEnd}`: điều chỉnh `leave_pay` và `housing_eligible` theo lái xe/kỳ.
+- `planSalaryAdjustments/{driverId}_{rangeStart}_{rangeEnd}`: điều chỉnh `leave_pay`, `housing_eligible` và `insurance_eligible` theo lái xe/kỳ.
 
 Thông tin danh mục còn thiếu luôn hiển thị **Chưa cập nhật**; ứng dụng không tự tạo dữ liệu giả. Khi chọn biển số trong Plan, `tonnage` được lấy từ danh mục và snapshot vào chuyến đã lưu, vì vậy sửa danh mục sau đó không thay đổi lịch sử.
 
@@ -147,7 +148,7 @@ rot_diem_thu_khach, customer_waiting_fee, overnight_fee,
 other_customer_charge, cuoc
 ```
 
-- Bắt buộc nhập `customer`, `pickup_date` và `driver`.
+- Bắt buộc nhập `customer`, `pickup_date` và `driver`. Chấm công có thể để trống, chọn **Có** (1 công) hoặc **Nửa ngày** (0,5 công); không có lựa chọn `Không`.
 - `cargo` là dropdown danh mục Cargo; `route` là dropdown phụ thuộc tuyến của Cargo đã chọn. `route` chỉ tự chọn sẵn khi Cargo có đúng một tuyến và vẫn có thể đổi lại. Lựa chọn cuối **Khác (nhập tay)** mở ô nhập tuyến phát sinh; Cargo không có trong danh mục dùng chế độ nhập tay cả hai ô. Dữ liệu lưu vẫn là chuỗi `cargo`/`route`.
 - `km_trip = km_return - km_pickup` và `luong_lai_xe_theo_chuyen = round(vehicle_revenue × 16%)` được tính tự động.
 - **Phí trả lái xe** chỉ là tiêu đề nhóm, không phải field.
@@ -161,8 +162,8 @@ other_customer_charge, cuoc
 Bảng kê SUB và Chấm công (Beta) dùng cùng một kỳ mặc định, tính bao gồm từ ngày 26 tháng trước đến ngày 25 tháng hiện tại.
 
 - Bảng kê SUB lọc theo đúng tên khách hàng và `pickup_date` trong kỳ; chỉ dùng Nhóm C. Mỗi dòng tính `total_fare = rot_diem_thu_khach + customer_waiting_fee + overnight_fee + other_customer_charge + cuoc`, `vat = round(total_fare × 8%)`, và `total_payment = total_fare + vat`. Báo cáo/XLSX hiển thị `company_name`, `company_address`, `tax_code`, `company_email` của khách hàng theo danh mục; thông tin thiếu hiển thị **Chưa cập nhật**.
-- XLSX SUB có tiêu đề/metadata theo mẫu Hoàng Anh Logistics, header xanh lá, ngày `dd/mm/yyyy`, tiền `#,##0`; cột dữ liệu dừng ở **Tổng thanh toán (đã gồm VAT)** theo mẫu xuất.
-- Chấm công được suy ra trong bộ nhớ từ tên lái xe đã chuẩn hóa và `pickup_date`; không ghi document chấm công và không có thao tác sửa tay. Mọi lái xe trong danh mục đều hiển thị. Một hay nhiều chuyến cùng ngày chỉ đánh một `X`; Chủ nhật có thể có `X` nhưng không cộng ngày công.
+- XLSX SUB có tiêu đề/metadata theo mẫu Hoàng Anh Logistics, header xanh lá, ngày `dd/mm/yyyy`, tiền `#,##0`. Sau dữ liệu là dòng **TỔNG CỘNG** in đậm, kẻ đôi phía trên, cộng Rớt điểm, Phí chờ giờ, Lưu ca, Phát sinh khác, Cước, Tổng cước, VAT và Tổng thanh toán. Khối ký gồm tên công ty khách hàng bên trái và **CÔNG TY TNHH TM & DV HOÀNG ANH LOGISTICS** bên phải, với dòng nghiêng `(Ký, đóng dấu)` dưới mỗi bên.
+- Chấm công được suy ra trong bộ nhớ từ tên lái xe đã chuẩn hóa và `pickup_date`; không ghi document chấm công và không có thao tác sửa tay. Mọi lái xe trong danh mục đều hiển thị. Một hay nhiều chuyến cùng ngày dùng giá trị cao nhất: `Có` (1 công) ưu tiên hơn `Nửa ngày` (0,5 công). Chủ nhật có thể hiển thị dấu `X` hoặc `½` nhưng không cộng công. Bảng có tổng **Ngày công (tổng)**, **Ngày công thử việc** và **Ngày công chính thức**.
 
 #### Chi phí vận hành (Beta)
 
@@ -186,12 +187,17 @@ Nhật ký sửa chữa/bảo dưỡng xe thực tế, lưu riêng trong `repair
 
 #### Tham số và Bảng lương (Beta)
 
-Tham số lương mặc định chỉ hiển thị khi chưa có `planSettings/salary_parameters`; chúng chỉ được ghi sau khi quản lý nhấn lưu. Bảng lương dùng ngày công Beta, toàn bộ lái xe trong danh mục và tổng Nhóm A của các chuyến cùng kỳ.
+Tham số lương mặc định chỉ hiển thị khi chưa có `planSettings/salary_parameters`; chúng chỉ được ghi sau khi quản lý nhấn lưu. Bảng lương dùng ngày công Beta, toàn bộ lái xe trong danh mục (kèm lái xe ngoài danh mục nhưng có chuyến) và tổng Nhóm A của các chuyến cùng kỳ.
 
-- Không có ghi đè, thử việc tính từ `vehicle_received_date` đến hết cùng ngày của tháng kế tiếp; ví dụ nhận xe 15/01 thì thử việc hết 15/02 và chính thức từ 16/02. `base_salary_status_override` áp dụng cho toàn bộ kỳ.
-- Thiếu ngày nhận xe khi không ghi đè là trạng thái thiếu thiết lập; hệ thống không tự suy đoán lương.
-- `leave_pay` (Nghỉ phép) hiển thị/sửa riêng nhưng **không cộng vào Tổng lương CB + PC hoặc Tổng thực lĩnh**.
-- Hỗ trợ nhà ở chỉ áp dụng khi điều chỉnh kỳ chọn `housing_eligible: Có`, có ngày công chính thức và đủ dữ liệu để xác định thâm niên.
+- Trạng thái lương cơ bản suy ra tự động từ `vehicle_received_date`; không còn `base_salary_status_override`. Thử việc tính từ ngày nhận xe đến hết cùng ngày của tháng kế tiếp; ví dụ nhận xe 15/01 thì thử việc hết 15/02 và chính thức từ 16/02.
+- Không có `vehicle_received_date` (gồm cả lái xe ngoài danh mục): lương cơ bản và mọi khoản phụ cấp theo ngày công bằng 0, nhưng **Lương chuyến** và tổng Nhóm A vẫn được tính.
+- `Tổng phụ cấp A` chỉ gồm `warehouse_fee`, `loading_fee`, `consolidation_fee`, `sunday_fee`, `wait_time_fee`, `second_meal_fee`, `overtime_fee`. `turnaround_fee` và `rot_diem_cho_xe` không nằm trong công thức.
+- `Lương cơ bản = round(((công thử việc × 85% + công chính thức) / 26) × lương cơ bản/tháng × hệ số lương)`.
+- `PC ăn trưa = ngày công × 40.000`. Các khoản theo tháng được chia theo ngày công chuẩn: `PC xăng dầu`, `PC công việc`, `PC điện thoại = round(mức tháng / 26 × ngày công)`.
+- `PC chuyên cần` chỉ tính khi ngày công đủ 26. Hỗ trợ nhà ở chỉ áp dụng khi điều chỉnh kỳ chọn `housing_eligible: Có`, có ngày công chính thức và đủ dữ liệu thâm niên kể từ ngày bắt đầu chính thức (tháng 1–3: 350.000; từ tháng 4: 500.000).
+- Cột **Bảo hiểm (NLĐ đóng)** chỉ tính khi điều chỉnh kỳ chọn **Hưởng BH? = Có** và người đó có ngày nhận xe: `round(lương cơ bản/tháng × hệ số lương × 10,5%)`; giá trị này bị trừ khỏi tổng thực lĩnh.
+- `Tổng lương CB + PC` cộng `PC công việc` **hai lần** theo đúng công thức nguồn đã duyệt. `leave_pay` (Nghỉ phép, mặc định 0) hiển thị/sửa riêng nhưng **không cộng vào Tổng lương CB + PC hoặc Tổng thực lĩnh**.
+- `Tổng thực lĩnh = Tổng lương CB + PC + Lương chuyến + Tổng phụ cấp A − Bảo hiểm`.
 - Bảng lương và các báo cáo Beta đều có xuất XLSX trong trình duyệt bằng SheetJS CDN.
 
 Sau khi triển khai code mới, dán nội dung [firestore.rules](firestore.rules) cập nhật vào **Firestore Database → Rules** và nhấn **Publish**. Trước bước này, Firestore sẽ từ chối đọc/ghi các collection Beta mới theo rules cũ.
