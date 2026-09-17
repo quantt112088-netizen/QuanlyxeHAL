@@ -100,6 +100,11 @@ service cloud.firestore {
         && isOwnerOrManager();
     }
 
+    match /fuelEntries/{entryId} {
+      allow read, create, update, delete: if request.auth != null
+        && isOwnerOrManager();
+    }
+
     match /planSettings/{settingId} {
       allow read, create, update, delete: if request.auth != null
         && isOwnerOrManager();
@@ -130,6 +135,7 @@ Khu vực **Nhập liệu (Beta)** chỉ xuất hiện với tài khoản quản
 - `planEntries/{entryId}`: chuyến Plan, với các key tiếng Anh `snake_case`. Tất cả record mới ghi theo schema này; record camelCase cũ vẫn đọc được và chỉ được chuẩn hóa khi chính record đó được lưu lại.
 - `planSettings/salary_parameters`: tham số lương chung Beta.
 - `planSalaryAdjustments/{driverId}_{rangeStart}_{rangeEnd}`: điều chỉnh `leave_pay`, `housing_eligible` và `insurance_eligible` theo lái xe/kỳ.
+- `fuelEntries/{entryId}`: sổ quỹ Đổ dầu dùng chung mọi tháng. Một document là một giao dịch `nap_tien` hoặc `do_dau`; không lưu trường `month`.
 
 Thông tin danh mục còn thiếu luôn hiển thị **Chưa cập nhật**; ứng dụng không tự tạo dữ liệu giả. Khi chọn biển số trong Plan, `tonnage` được lấy từ danh mục và snapshot vào chuyến đã lưu, vì vậy sửa danh mục sau đó không thay đổi lịch sử.
 
@@ -159,7 +165,7 @@ other_customer_charge, cuoc
 
 #### Bảng kê SUB và Chấm công (Beta)
 
-Bảng kê SUB và Chấm công (Beta) dùng cùng một kỳ mặc định, tính bao gồm từ ngày 26 tháng trước đến ngày 25 tháng hiện tại.
+Bảng kê SUB là ngoại lệ duy nhất vẫn dùng kỳ mặc định từ ngày 26 tháng trước đến ngày 25 tháng hiện tại. Chấm công (Beta), Chi phí vận hành (Beta), Bảng lương (Beta) và Đổ dầu (Beta) mặc định theo tháng dương lịch, từ ngày đầu tháng đến ngày cuối tháng. Khoảng ngày người dùng đã chọn không bị ghi đè.
 
 - Bảng kê SUB lọc theo đúng tên khách hàng và `pickup_date` trong kỳ; chỉ dùng Nhóm C. Mỗi dòng tính `total_fare = rot_diem_thu_khach + customer_waiting_fee + overnight_fee + other_customer_charge + cuoc`, `vat = round(total_fare × 8%)`, và `total_payment = total_fare + vat`. Báo cáo/XLSX hiển thị `company_name`, `company_address`, `tax_code`, `company_email` của khách hàng theo danh mục; thông tin thiếu hiển thị **Chưa cập nhật**.
 - XLSX SUB có tiêu đề/metadata theo mẫu Hoàng Anh Logistics, header xanh lá, ngày `dd/mm/yyyy`, tiền `#,##0`. Sau dữ liệu là dòng **TỔNG CỘNG** in đậm, kẻ đôi phía trên, cộng Rớt điểm, Phí chờ giờ, Lưu ca, Phát sinh khác, Cước, Tổng cước, VAT và Tổng thanh toán. Khối ký gồm tên công ty khách hàng bên trái và **CÔNG TY TNHH TM & DV HOÀNG ANH LOGISTICS** bên phải, với dòng nghiêng `(Ký, đóng dấu)` dưới mỗi bên.
@@ -167,7 +173,7 @@ Bảng kê SUB và Chấm công (Beta) dùng cùng một kỳ mặc định, tí
 
 #### Chi phí vận hành (Beta)
 
-Đây là trang báo cáo chỉ đọc, dùng duy nhất `planEntries` trong kỳ 26 tháng trước đến 25 tháng hiện tại. Trang không có form nhập liệu, không tạo collection và không ghi Firestore. Nút xuất XLSX tạo hai sheet có header màu, ngày `dd/mm/yyyy` và tiền `#,##0`: tổng hợp chi phí và doanh thu/chi phí/lợi nhuận theo khách hàng.
+Đây là trang báo cáo chỉ đọc, dùng duy nhất `planEntries` trong kỳ tháng dương lịch mặc định (ngày đầu tháng đến ngày cuối tháng). Trang không có form nhập liệu, không tạo collection và không ghi Firestore. Nút xuất XLSX tạo hai sheet có header màu, ngày `dd/mm/yyyy` và tiền `#,##0`: tổng hợp chi phí và doanh thu/chi phí/lợi nhuận theo khách hàng.
 
 - **Phần A** tổng hợp 14 hạng mục: `vehicle_revenue`, `warehouse_fee`, `loading_fee`, `consolidation_fee`, `sunday_fee`, `wait_time_fee`, `second_meal_fee`, `overtime_fee`, `luong_lai_xe_theo_chuyen`, `turnaround_fee`, `rot_diem_cho_xe`, `fuel`, `epass`, `trip_extra_cost`.
 - **TỔNG CHI PHÍ** chỉ cộng dòng 1–8 và 10–14. `luong_lai_xe_theo_chuyen` (dòng 9) chỉ để tham khảo, vì đã nằm trong `vehicle_revenue`; hệ thống tuyệt đối không cộng lại khoản này.
@@ -184,6 +190,19 @@ Nhật ký sửa chữa/bảo dưỡng xe thực tế, lưu riêng trong `repair
 - `thanh_toan` (`Ghi nợ`, `Tiền mặt`, `Chuyển khoản`) và `chung_tu` (`Hóa đơn VAT`, `Phiếu thu`, `Khác`) là dropdown tùy chọn.
 - Thứ tự thô của form/bảng/xuất Excel là: `ngay_gio`, `km_hien_tai`, `bien_kiem_soat`, `lai_xe`, `giam_sat_sua_chua`, `don_vi_cung_cap`, `code`, `cong_viec`, `nhom_sua_chua`, `dien_giai`, `dvt`, `so_luong`, `don_gia`, `thanh_tien_chua_vat`, `vat_percent`, `tong_tien`, `don_vi_chiu_trach_nhiem`, `thanh_toan`, `chung_tu`, `so_dntt`, `xac_nhan_thanh_toan`, `ghi_chu`, `so_hoa_don`.
 - Trang **Nhập sửa chữa** lưu/sửa qua `repairEntries`; trang **Sửa chữa (Beta)** lọc theo tháng dương lịch, tìm theo Biển kiểm soát/Đơn vị cung cấp, sửa/xóa từng dòng, tổng hợp `tong_tien` theo từng Biển kiểm soát trong tháng rồi thêm hàng **TỔNG CỘNG**, và xuất XLSX định dạng màu header, ngày `dd/mm/yyyy`, tiền `#,##0`.
+
+#### Đổ dầu (Beta)
+
+Sổ quỹ dầu thống nhất, lưu riêng trong `fuelEntries/{entryId}`. Một tab duy nhất dùng chung mọi tháng: bộ lọc kỳ chỉ thay đổi phạm vi xem/tổng hợp, không tách quỹ. Nguồn này độc lập hoàn toàn với `planEntries` (kể cả field `fuel` lịch sử), không đọc/ghi Google Sheets và không cộng vào **Chi phí vận hành (Beta)**.
+
+- Mỗi document là một giao dịch: `loai_giao_dich` (`nap_tien` hoặc `do_dau`), `ngay_gio` (`YYYY-MM-DD`), `so_tien` (số nguyên không âm), `dia_chi`, `ghi_chu`, `chu_y`, cùng audit `created_at`/`created_by`/`updated_at`/`updated_by`. Không lưu `month`.
+- **Nạp tiền** nhập tay `so_tien` và `dia_chi` (datalist); không cần biển số/lái xe/số lít.
+- **Đổ dầu** có `bien_kiem_soat`, `lai_xe` (dropdown danh mục), `so_lit`, `don_gia`, `km_thuc_te`, `so_hoa_don`, `dia_chi` (datalist). `so_tien = round(so_lit × don_gia)` luôn được tính lại trước khi lưu. `dia_chi` dùng chung cho cả hai loại qua datalist từ các địa chỉ đã nhập, không tạo danh mục giả.
+- Số lít nhận cả `25,5` và `25.5`.
+- **Km đã đi** là số suy ra, không ghi Firestore: cùng biển số, xét toàn bộ lịch sử `do_dau` có `km_thuc_te` hợp lệ, không giới hạn theo kỳ đang xem. `Km đã đi = Km hiện tại − Km lần đổ dầu trước`. Form Đổ dầu hiện **Km lần đổ trước** và **Km đã đi từ lần trước** ngay khi đổi biển số/ngày/km; khi sửa một record, phép tính không tự so với chính record đó. Nếu chưa có lần trước hoặc km hiện tại thấp hơn mốc trước thì để trống, không hiện 0.
+- Công thức quỹ: **Đầu kỳ** = Σ(Nạp − Tiền đổ) của mọi record trước `Từ ngày`; **Nạp trong kỳ** / **Tiền đổ trong kỳ** = tổng `so_tien` đúng loại trong range; **Tồn cuối / Tiền dư** = `Đầu kỳ + Nạp trong kỳ − Tiền đổ trong kỳ`. Card **Quỹ toàn sổ** cộng tất cả record, không phụ thuộc kỳ đang xem. Số dư âm vẫn hiển thị đúng, không tự điều chỉnh.
+- Bảng sổ trong kỳ có cột ngày, loại, tiền nạp, tiền đổ, số dư sau từng dòng, chi tiết đổ dầu và **Km đã đi**. Tổng hợp theo biển chỉ tính giao dịch `do_dau` trong kỳ: số lần, tổng lít, tổng tiền. Tìm theo biển số, lái xe, hóa đơn, ghi chú, địa chỉ; hỗ trợ sửa/xóa.
+- Xuất XLSX gồm khối kỳ tính/Đầu kỳ/Nạp/Tiền đổ/Tồn cuối, ledger đúng range đang xem và tổng hợp theo biển; header màu, ngày `dd/mm/yyyy`, tiền `#,##0`.
 
 #### Tham số và Bảng lương (Beta)
 
