@@ -136,6 +136,7 @@ Khu vực **Nhập liệu (Beta)** chỉ xuất hiện với tài khoản quản
 - `planSettings/salary_parameters`: tham số lương chung Beta.
 - `planSalaryAdjustments/{driverId}_{rangeStart}_{rangeEnd}`: điều chỉnh `leave_pay`, `housing_eligible` và `insurance_eligible` theo lái xe/kỳ.
 - `fuelEntries/{entryId}`: sổ quỹ Đổ dầu dùng chung mọi tháng. Một document là một giao dịch `nap_tien` hoặc `do_dau`; không lưu trường `month`.
+- `fuelNorms/{normId}`: định mức dầu nội bộ theo biển kiểm soát (`bien_kiem_soat` duy nhất, `trong_tai` snapshot, `dinh_muc_dau` Lít/Km). Không đọc/ghi Google Sheets.
 
 Thông tin danh mục còn thiếu luôn hiển thị **Chưa cập nhật**; ứng dụng không tự tạo dữ liệu giả. Khi chọn biển số trong Plan, `tonnage` được lấy từ danh mục và snapshot vào chuyến đã lưu, vì vậy sửa danh mục sau đó không thay đổi lịch sử.
 
@@ -156,7 +157,7 @@ other_customer_charge, cuoc
 
 - Bắt buộc nhập `customer`, `pickup_date` và `driver`. Chấm công có thể để trống, chọn **Có** (1 công) hoặc **Nửa ngày** (0,5 công); không có lựa chọn `Không`.
 - `cargo` là dropdown danh mục Cargo; `route` là dropdown phụ thuộc tuyến của Cargo đã chọn. `route` chỉ tự chọn sẵn khi Cargo có đúng một tuyến và vẫn có thể đổi lại. Lựa chọn cuối **Khác (nhập tay)** mở ô nhập tuyến phát sinh; Cargo không có trong danh mục dùng chế độ nhập tay cả hai ô. Dữ liệu lưu vẫn là chuỗi `cargo`/`route`.
-- `km_trip = km_return - km_pickup` và `luong_lai_xe_theo_chuyen = round(vehicle_revenue × 16%)` được tính tự động.
+- `km_trip = km_return - km_pickup` và `luong_lai_xe_theo_chuyen = round(vehicle_revenue × 16%)` được tính tự động. Với chuyến mới, `fuel = round(km_trip × định mức dầu của biển số × đơn giá đổ dầu áp dụng cho Ngày lấy hàng)`; chuyến cũ không có `fuel_auto` giữ nguyên số Dầu đã lưu.
 - **Phí trả lái xe** chỉ là tiêu đề nhóm, không phải field.
 - Form dùng 4 khối trình bày: `Doanh thu trả cho xe` đứng riêng; đỏ cho chi phí lái xe được nhận; xanh lá cho chi phí khi xe hoạt động; xanh dương cho doanh thu thu khách hàng. Đây chỉ là thay đổi trình bày, không đổi key, thứ tự xuất Excel hay công thức.
 - Nhóm A là chi phí trả cho xe/lái xe; Nhóm B là chi phí của chuyến; Nhóm C là cước tính khách. `rot_diem_cho_xe` và `rot_diem_thu_khach` là hai field độc lập.
@@ -203,6 +204,12 @@ Sổ quỹ dầu thống nhất, lưu riêng trong `fuelEntries/{entryId}`. Mộ
 - Công thức quỹ: **Đầu kỳ** = Σ(Nạp − Tiền đổ) của mọi record trước `Từ ngày`; **Nạp trong kỳ** / **Tiền đổ trong kỳ** = tổng `so_tien` đúng loại trong range; **Tồn cuối / Tiền dư** = `Đầu kỳ + Nạp trong kỳ − Tiền đổ trong kỳ`. Card **Quỹ toàn sổ** cộng tất cả record, không phụ thuộc kỳ đang xem. Số dư âm vẫn hiển thị đúng, không tự điều chỉnh.
 - Bảng sổ trong kỳ có cột ngày, loại, tiền nạp, tiền đổ, số dư sau từng dòng, chi tiết đổ dầu và **Km đã đi**. Tổng hợp theo biển chỉ tính giao dịch `do_dau` trong kỳ: số lần, tổng lít, tổng tiền. Tìm theo biển số, lái xe, hóa đơn, ghi chú, địa chỉ; hỗ trợ sửa/xóa.
 - Xuất XLSX gồm khối kỳ tính/Đầu kỳ/Nạp/Tiền đổ/Tồn cuối, ledger đúng range đang xem và tổng hợp theo biển; header màu, ngày `dd/mm/yyyy`, tiền `#,##0`.
+
+#### Định mức nội bộ (Beta)
+
+Mỗi biển kiểm soát có nhiều nhất một định mức dầu, lưu riêng trong `fuelNorms/{normId}`: `bien_kiem_soat` (cần phải có, chuẩn hóa không phân biệt hoa thường), `trong_tai` (snapshot từ Danh mục dùng chung tại thời điểm lưu), `dinh_muc_dau` (Lít/Km, `> 0`). Trang **Định mức nội bộ (Beta)** nhóm trong **Vận hành & Chi phí**, chỉ có thêm/sửa/xóa và không có xuất Excel. Khi vào trang, hai định mức mẫu `19H-14749` (`1.25T`, `0.08`) và `19H-14727` (`2.5T`, `0.11`) được tạo idempotent nếu chưa có, không đè lên dòng đã sửa và không tạo mục danh mục Biển kiểm soát mới.
+
+Áp dụng cho công thức **Dầu** của chuyến Plan mới: `Chi phí dầu = KM chuyến × Định mức dầu (theo biển số, từ fuelNorms) × Giá dầu áp dụng cho Ngày lấy hàng (tra từ fuelEntries)`. Tra giá là giá thị trường chung, không lọc biển số, chỉ xét `do_dau` có `don_gia` hợp lệ. Giá có hiệu lực từ ngày đổ đến ngay trước ngày đổ tiếp theo. Nếu thiếu KM, thiếu định mức của biển này hoặc chưa có giá áp dụng cho ngày này thì Dầu bằng `0` và hiện ghi chú tiếng Việt, không chặn lưu. Chuyến đã lưu trước đây giữ nguyên `fuel` nhập tay; chỉ chuyến mới (và chuyến đã gắn `fuel_auto: true`) được ghi tự tính.
 
 #### Tham số và Bảng lương (Beta)
 
